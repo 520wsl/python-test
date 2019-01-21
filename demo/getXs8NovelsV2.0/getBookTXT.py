@@ -35,13 +35,13 @@ from public.TimeToo import TimeToo
 
 
 class BookTXTLoad(object):
-    def __init__(self, second, bookTXTGroupSize, environmentalType, maxBookNex):
+    def __init__(self, second, environmentalType, maxBookNex):
         self.b_bookPageSize = 10
         self.b_bookIdSize = 5
-        self.b_bookTXTGroupSize = bookTXTGroupSize
-        self.b_second = second
-        self.b_environmentalType = environmentalType
-        self.b_maxBookNex = maxBookNex
+        self.b_bookTXTGroupSize = 100
+        self.b_second = int(second)
+        self.b_environmentalType = int(environmentalType)
+        self.b_maxBookNex = int(maxBookNex)
         self.b_title = 'getBookTXT'
 
         self.b_catalogList = []
@@ -190,7 +190,6 @@ class BookTXTLoad(object):
         listTaskList = bookCatalogUrlGroupingData['listTaskList']
         for i in range(bookCatalogUrlGroupingData['listGroupSize']):
             if len(listTaskList[i]) <= 0: continue
-            # self.dataToo.threads(listTaskList[i], self.getArticle)
             start = time.time()
             for j in range(len(listTaskList[i])):
                 self.second()
@@ -258,5 +257,15 @@ class BookTXTLoad(object):
 
 
 if __name__ == '__main__':
-    book = BookTXTLoad(second=1, bookTXTGroupSize=1, environmentalType=0, maxBookNex=0)
-    book.bookTxtLoad()
+    second = input("每条链接抓取间隔(秒): >>")
+    environmentalType = input("请输入0、1、2（0：dev,1:test,2:online）: >>")
+    maxBookNex = 0
+    print(
+        '\n\n参数确认： second: %s |environmentalType: %s | maxBookNex : %s \n\n' % (second, environmentalType, maxBookNex))
+    time.sleep(5)
+    isStart = input("是否开始？(yes/no): >>")
+    if (isStart == 'yes'):
+        book = BookTXTLoad(second=second, environmentalType=environmentalType, maxBookNex=maxBookNex)
+        book.bookTxtLoad()
+    else:
+        print('取消抓取')
