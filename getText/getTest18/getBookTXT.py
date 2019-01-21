@@ -35,21 +35,21 @@ from public.TimeToo import TimeToo
 
 
 class BookTXTLoad(object):
-    def __init__(self, title, bookPageSize, bookIdSize, second,
-                 bookTXTGroupSize, environmentalType, maxBookNex):
-        self.b_bookPageSize = bookPageSize
-        self.b_bookIdSize = bookIdSize
+    def __init__(self, second, bookTXTGroupSize, environmentalType, maxBookNex):
+        self.b_bookPageSize = 10
+        self.b_bookIdSize = 5
         self.b_bookTXTGroupSize = bookTXTGroupSize
         self.b_second = second
         self.b_environmentalType = environmentalType
         self.b_maxBookNex = maxBookNex
+        self.b_title = 'getBookTXT'
 
         self.b_catalogList = []
         self.b_bookTXTData = []
-        self.b_title = title
         self.errorUrl = []
         self.request404 = []
         self.countNum = 0
+
         self.con = ConfigParser()
         self.logName = self.intLogName()
         self.mySql = MySqlToo(logName=self.logName)
@@ -258,6 +258,5 @@ class BookTXTLoad(object):
 
 
 if __name__ == '__main__':
-    book = BookTXTLoad(title='getBookTXT', bookPageSize=10, bookIdSize=5, second=1,
-                       bookTXTGroupSize=1, environmentalType=0, maxBookNex=0)
+    book = BookTXTLoad(second=1, bookTXTGroupSize=1, environmentalType=0, maxBookNex=0)
     book.bookTxtLoad()
