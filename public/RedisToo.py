@@ -42,6 +42,7 @@ class RedisToo():
                                          port=self.con.getConfig('redisConfig', 'port'),
                                          db=self.con.getConfig('redisConfig', 'db'))
         self.r = redis.Redis(connection_pool=self.pool)
+        self.p = redis.StrictRedis(connection_pool=self.pool)
 
     # 获取 并 删除 列表某些元素
     def getListData(self, name="list_name1", num=1):

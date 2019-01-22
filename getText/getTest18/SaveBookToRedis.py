@@ -32,12 +32,12 @@ from public.Logger import Logger
 
 
 class SaveBookToRedis():
-    def __init__(self, second, environmentalType, maxBookNex):
+    def __init__(self, environmentalType, maxBookNex):
         self.b_title = 'SaveBookToRedis'
         self.b_bookPageSize = 10
         self.b_bookIdSize = 5
         self.b_bookTXTGroupSize = 100
-        self.b_second = int(second)
+        self.b_second = 1
         self.b_environmentalType = int(environmentalType)
         self.b_maxBookNex = int(maxBookNex)
 
@@ -68,6 +68,9 @@ class SaveBookToRedis():
             environmental = 'dev'
             testBookId = "'10000611804961003','10000828104982003'"
             getBookIdsSql = "SELECT book_Id FROM books WHERE book_Id in (%s)" % testBookId
+            self.b_bookPageSize = 2
+            self.b_bookIdSize = 2
+            self.b_bookTXTGroupSize = 1
 
         return {
             'saveText': "INSERT INTO `links` (`url`,article) VALUES (%s, %s) ON DUPLICATE KEY UPDATE article = VALUES (article), nex = nex+1",
@@ -77,7 +80,7 @@ class SaveBookToRedis():
 
     def intLogName(self):
         timeStr = moment.now().format('YYYY-MM-DD-HH-mm-ss')
-        return '%s_%s.txt' % (self.b_title, timeStr)
+        return '%s_%s.log' % (self.b_title, timeStr)
 
     def second(self):
         time.sleep(self.b_second)
@@ -98,10 +101,9 @@ class SaveBookToRedis():
         listTaskList = bookIdGroupingData['listTaskList']
         for i in range(bookIdGroupingData['listGroupSize']):
             if len(listTaskList[i]) <= 0: continue
-            # self.dataToo.threads(listTaskList[i], self.getCatalogData)
             data = []
             for item in listTaskList[i]:
-                data.append(str(item))
+                data.append(','.join(item))
             self.rds.setListData('bookIdsList', data)
 
     def bookTxtLoad(self):
@@ -127,16 +129,17 @@ class SaveBookToRedis():
             self.timeToo.changeTime(float(end) - float(start))))
         self.logger.info('========' * 15)
 
+
 if __name__ == '__main__':
-    second = input("每条链接抓取间隔(秒): >>")
+
     environmentalType = input("请输入0、1、2（0：dev,1:test,2:online）: >>")
     maxBookNex = 0
     print(
-        '\n\n参数确认： 间隔(s) : %s | 环境 : %s | 最大抓取数 : %s \n\n' % (second, environmentalType, maxBookNex))
-    time.sleep(5)
-    isStart = input("是否开始？(yes/no): >>")
-    if (isStart == 'yes'):
-        book = SaveBookToRedis(second=second, environmentalType=environmentalType, maxBookNex=maxBookNex)
+        '\n\n参数确认： 环境 : %s | 最大抓取数 : %s \n\n' % (environmentalType, maxBookNex))
+    time.sleep(1)
+    isStart = input("是否开始？(y/n): >>")
+    if (isStart == 'y'):
+        book = SaveBookToRedis(environmentalType=environmentalType, maxBookNex=maxBookNex)
         book.bookTxtLoad()
     else:
         print('取消抓取')

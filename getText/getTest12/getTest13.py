@@ -48,7 +48,6 @@ class RedisToo():
 
     def getData(self):
         nloops = range(3)
-        # self.logger.debug('threads:==>\n\t %s \n\t %s' % (nloops, taskList))
 
         threads = []
         for i in nloops:

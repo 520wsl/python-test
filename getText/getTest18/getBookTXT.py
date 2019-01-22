@@ -31,16 +31,17 @@ from public.MySqlToo import MySqlToo
 from public.Logger import Logger
 from public.DataToo import DataToo
 from public.ConfigParser import ConfigParser
+from public.RedisToo import RedisToo
 from public.TimeToo import TimeToo
 
 
-class BookTXTLoad(object):
-    def __init__(self, second, environmentalType, maxBookNex):
+class GetBookTXT(object):
+    def __init__(self, maxBookNex, getBookIdsListSize):
+        self.b_getBookIdsListSize = int(getBookIdsListSize)
         self.b_bookPageSize = 10
         self.b_bookIdSize = 5
         self.b_bookTXTGroupSize = 100
-        self.b_second = int(second)
-        self.b_environmentalType = int(environmentalType)
+        self.b_second = 1
         self.b_maxBookNex = int(maxBookNex)
         self.b_title = 'getBookTXT'
 
@@ -55,27 +56,15 @@ class BookTXTLoad(object):
         self.mySql = MySqlToo(logName=self.logName)
         self.dataToo = DataToo(logName=self.logName, second=self.b_second)
         self.logger = Logger(logname=self.logName, loglevel=1, logger=self.b_title).getlog()
-        self.rds = self.initRds()
+        self.rds = RedisToo()
         self.timeToo = TimeToo()
         self.b_heads = self.initHeads()
         self.b_mysqlStr = self.initMysqlStr()
 
     def initMysqlStr(self):
-        if self.b_environmentalType == 2:
-            environmental = 'online'
-            getBookIdsSql = "SELECT book_Id FROM books WHERE nex > %s" % self.b_maxBookNex
-        elif self.b_environmentalType == 1:
-            environmental = 'test'
-            testBookId = '10000,20000'
-            getBookIdsSql = "SELECT book_Id FROM books WHERE nex > %s limit %s" % (self.b_maxBookNex, testBookId)
-        else:
-            environmental = 'dev'
-            testBookId = "'10000611804961003','10000828104982003'"
-            getBookIdsSql = "SELECT book_Id FROM books WHERE book_Id in (%s)" % testBookId
-
         return {
             'saveText': "INSERT INTO `links` (`url`,article) VALUES (%s, %s) ON DUPLICATE KEY UPDATE article = VALUES (article), nex = nex+1",
-            'getBookIdsSql': getBookIdsSql,
+            # 'getBookIdsSql': getBookIdsSql,
             'getCatalogData': "SELECT url FROM links WHERE fs = 0 AND book_Id in "
         }
 
@@ -95,23 +84,27 @@ class BookTXTLoad(object):
 
     def intLogName(self):
         timeStr = moment.now().format('YYYY-MM-DD-HH-mm-ss')
-        return '%s_%s.txt' % (self.b_title, timeStr)
-
-    def initRds(self):
-        pool = redis.ConnectionPool(host=self.con.getConfig('redisConfig', 'host'),
-                                    port=self.con.getConfig('redisConfig', 'port'),
-                                    db=self.con.getConfig('redisConfig', 'db'))
-        return redis.StrictRedis(connection_pool=pool)
+        return '%s_%s.log' % (self.b_title, timeStr)
 
     def second(self):
         time.sleep(self.b_second)
 
+    def target(self):
+        bookList = []
+        for i in range(self.b_getBookIdsListSize):
+            link = self.rds.r.lpop("bookIdsList")
+            if link != None:
+                link = link.decode(encoding='utf-8')
+                bookList.append(link)
+        return bookList
+
     # 2、调用mySQL类 mysqlUtils.getListData 获取数据列表
     def getBookData(self):
+        bookLists = self.target()
         bookList = []
-        bookData = self.mySql.getListData(sql=self.b_mysqlStr['getBookIdsSql'])
-        for item in bookData:
-            bookList.append(item[0])
+        for item in bookLists:
+            for item2 in item.split(","):
+                bookList.append(item2)
         return bookList
 
     def getCatalogData(self, bookId, index):
@@ -216,12 +209,8 @@ class BookTXTLoad(object):
             # if res: self.b_bookTXTData = []
 
     # 文章内容存储
-    def bookTxtLoad(self):
+    def bookTxtLoad(self, bookData):
         start = time.time()
-        bookData = self.getBookData()
-        if len(bookData) <= 0:
-            self.logger.debug('bookTxtLoad 没有数据\n')
-            return
         bookGroupingData = self.dataToo.groupingData(list=bookData, pageSize=self.b_bookPageSize)
 
         self.logger.info('========' * 15)
@@ -254,18 +243,29 @@ class BookTXTLoad(object):
         self.logger.info('\t\t请求 失败链接     : %s 条' % (len(self.request404)))
         self.logger.info('\t\t采集 失败链接     ：\n\t\t\t' % (self.errorUrl))
         self.logger.info('\t\t请求 失败链接     ：\n\t\t\t' % (self.request404))
+        self.isOk()
+
+    def contentsLoad(self):
+        self.b_catalogList = []
+        bookData = self.getBookData()
+        if len(bookData) <= 0:
+            self.logger.debug('bookTxtLoad 没有数据\n')
+            return
+        self.bookTxtLoad(bookData)
+
+    def isOk(self):
+        self.contentsLoad()
 
 
 if __name__ == '__main__':
-    second = input("每条链接抓取间隔(秒): >>")
-    environmentalType = input("请输入0、1、2（0：dev,1:test,2:online）: >>")
+    getBookIdsListSize = input("获取多少组数据（最大10）: >>")
     maxBookNex = 0
     print(
-        '\n\n参数确认： second: %s |environmentalType: %s | maxBookNex : %s \n\n' % (second, environmentalType, maxBookNex))
-    time.sleep(5)
-    isStart = input("是否开始？(yes/no): >>")
-    if (isStart == 'yes'):
-        book = BookTXTLoad(second=second, environmentalType=environmentalType, maxBookNex=maxBookNex)
-        book.bookTxtLoad()
+        '\n\n参数确认： maxBookNex : %s | getBookIdsListSize : %s \n\n' % (maxBookNex, getBookIdsListSize))
+    time.sleep(1)
+    isStart = input("是否开始？(y/n): >>")
+    if (isStart == 'y'):
+        book = GetBookTXT(maxBookNex=maxBookNex, getBookIdsListSize=getBookIdsListSize)
+        book.contentsLoad()
     else:
         print('取消抓取')
