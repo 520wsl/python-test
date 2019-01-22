@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-__title__ = ''
+__title__ = '接受者'
 __author__ = 'Mad Dragon'
 __mtime__ = '2019/1/20'
 # 我不懂什么叫年少轻狂，只知道胜者为王
