@@ -54,14 +54,14 @@ class Publish():
 
     def getBookTXTAction(self):
         getBookIdsListSize = input("获取多少组数据（最大10）: >>")
-        maxBookNex = 0
+        maxCatalogNex = 1
         print(
-            '\n\n参数确认： maxBookNex : %s | getBookIdsListSize : %s \n\n' % (maxBookNex, getBookIdsListSize))
+            '\n\n参数确认： maxCatalogNex : %s | getBookIdsListSize : %s \n\n' % (maxCatalogNex, getBookIdsListSize))
         time.sleep(1)
         isStart = input("是否开始？(y/n): >>")
         if (isStart == 'y'):
             self.rds.p.publish('bookChannel', str(json.dumps(
-                {'type': 'GetBookTXT', 'maxBookNex': maxBookNex, 'getBookIdsListSize': getBookIdsListSize})))
+                {'type': 'GetBookTXT', 'maxCatalogNex': maxCatalogNex, 'getBookIdsListSize': getBookIdsListSize})))
         else:
             print('取消抓取')
 

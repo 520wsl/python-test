@@ -36,13 +36,14 @@ from public.TimeToo import TimeToo
 
 
 class GetBookTXT(object):
-    def __init__(self, maxBookNex, getBookIdsListSize):
+    def __init__(self, maxCatalogNex, getBookIdsListSize):
         self.b_getBookIdsListSize = int(getBookIdsListSize)
         self.b_bookPageSize = 10
         self.b_bookIdSize = 5
-        self.b_bookTXTGroupSize = 100
+        self.b_bookTXTGroupSize = 10
         self.b_second = 1
-        self.b_maxBookNex = int(maxBookNex)
+        self.b_fs = 0
+        self.b_maxCatalogNex = int(maxCatalogNex)
         self.b_title = 'getBookTXT'
 
         self.b_catalogList = []
@@ -65,7 +66,8 @@ class GetBookTXT(object):
         return {
             'saveText': "INSERT INTO `links` (`url`,article) VALUES (%s, %s) ON DUPLICATE KEY UPDATE article = VALUES (article), nex = nex+1",
             # 'getBookIdsSql': getBookIdsSql,
-            'getCatalogData': "SELECT url FROM links WHERE fs = 0 AND book_Id in "
+            'getCatalogData': "SELECT url FROM links WHERE fs = %s  AND nex < %s AND book_Id in " % (
+                self.b_fs, self.b_maxCatalogNex)
         }
 
     def initHeads(self):
@@ -182,7 +184,10 @@ class GetBookTXT(object):
                                                                fixed=True)
         listTaskList = bookCatalogUrlGroupingData['listTaskList']
         for i in range(bookCatalogUrlGroupingData['listGroupSize']):
-            if len(listTaskList[i]) <= 0: continue
+            if len(listTaskList[i]) <= 0:
+                self.logger.debug('书籍组 [ %s / %s ] 目录组 [ %s / %s ] ：bookCatalogUrlGroupingData 没有数据\n' % (
+                    index + 1, len(self.b_catalogList), i + 1, bookCatalogUrlGroupingData['listGroupSize']))
+                continue
             start = time.time()
             for j in range(len(listTaskList[i])):
                 self.second()
@@ -259,13 +264,13 @@ class GetBookTXT(object):
 
 if __name__ == '__main__':
     getBookIdsListSize = input("获取多少组数据（最大10）: >>")
-    maxBookNex = 0
+    maxCatalogNex = 1
     print(
-        '\n\n参数确认： maxBookNex : %s | getBookIdsListSize : %s \n\n' % (maxBookNex, getBookIdsListSize))
+        '\n\n参数确认： maxCatalogNex : %s | getBookIdsListSize : %s \n\n' % (maxCatalogNex, getBookIdsListSize))
     time.sleep(1)
     isStart = input("是否开始？(y/n): >>")
     if (isStart == 'y'):
-        book = GetBookTXT(maxBookNex=maxBookNex, getBookIdsListSize=getBookIdsListSize)
+        book = GetBookTXT(maxCatalogNex=maxCatalogNex, getBookIdsListSize=getBookIdsListSize)
         book.contentsLoad()
     else:
         print('取消抓取')
