@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-__title__ = ''
+__title__ = '接受者'
 __author__ = 'Mad Dragon'
 __mtime__ = '2019/1/20'
 # 我不懂什么叫年少轻狂，只知道胜者为王
@@ -24,8 +24,9 @@ import time
 import moment
 import redis
 
-from getText.getTest18.SaveBookToRedis import SaveBookToRedis
-from getText.getTest18.getBookTXT import GetBookTXT
+from SaveBookToRedis import SaveBookToRedis
+from getBookTXT import GetBookTXT
+from public.DataToo import DataToo
 from public.Logger import Logger
 from public.RedisToo import RedisToo
 
@@ -33,13 +34,12 @@ from public.RedisToo import RedisToo
 class Subscribe():
     def __init__(self):
         self.b_title = 'Subscribe'
-        self.rds = RedisToo()
-        self.logName = self.intLogName()
-        self.logger = Logger(logname=self.logName, loglevel=1, logger=self.b_title).getlog()
+        self.b_second = 1
+        self.b_timeStr = moment.now().format('YYYY-MM-DD-HH-mm-ss')
 
-    def intLogName(self):
-        timeStr = moment.now().format('YYYY-MM-DD-HH-mm-ss')
-        return '%s_%s.log' % (self.b_title, timeStr)
+        self.rds = RedisToo()
+        self.dataToo = DataToo(logName=self.b_title, second=self.b_second, timeStr=self.b_timeStr)
+        self.logger = Logger(logname=self.dataToo.initLogName(), loglevel=1, logger=self.b_title).getlog()
 
     def saveBookToRedisAction(self, params):
         self.logger.debug(params)
@@ -49,7 +49,7 @@ class Subscribe():
 
     def getBookTXTAction(self, params):
         self.logger.debug(params)
-        book = GetBookTXT(maxBookNex=params['maxBookNex'], getBookIdsListSize=params['getBookIdsListSize'])
+        book = GetBookTXT(maxCatalogNex=params['maxCatalogNex'], getBookIdsListSize=params['getBookIdsListSize'])
         book.contentsLoad()
         self.logger.debug('getBookTXT处理结束')
 
