@@ -52,10 +52,14 @@ class SaveBookToRedis():
         self.logName = self.intLogName()
         self.rds = RedisToo()
         self.mySql = MySqlToo(logName=self.logName)
-        self.dataToo = DataToo(logName=self.b_title, second=self.b_second, timeStr=self.b_timeStr)
-        self.logger = Logger(logname=self.dataToo.initLogName(), loglevel=1, logger=self.b_title).getlog()
+        self.dataToo = DataToo(logName=self.b_title, second=self.b_second)
+        self.logger = Logger(logname=self.intLogName(), loglevel=1, logger=self.b_title).getlog()
         self.timeToo = TimeToo()
         self.b_mysqlStr = self.initMysqlStr()
+
+    def intLogName(self):
+        timeStr = moment.now().format('YYYY-MM-DD-HH-mm-ss')
+        return '%s_%s.log' % (self.b_title, timeStr)
 
     def initMysqlStr(self):
         if self.b_environmentalType == 2:
@@ -97,6 +101,7 @@ class SaveBookToRedis():
         bookIdGroupingData = self.dataToo.groupingData(list=bookData, pageSize=self.b_bookIdSize)
         listTaskList = bookIdGroupingData['listTaskList']
         for i in range(bookIdGroupingData['listGroupSize']):
+            time.sleep(10)
             if len(listTaskList[i]) <= 0: continue
             data = []
             for item in listTaskList[i]:
