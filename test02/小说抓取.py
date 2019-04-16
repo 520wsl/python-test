@@ -21,6 +21,7 @@ __mtime__ = '2019/4/15'
 # https://www.qidian.com/all
 # 设计模式 -- 面向对象
 import os
+import time
 
 import requests
 import xlwt
@@ -31,6 +32,7 @@ class Spider(object):
     def start_request(self):
         # 1. 请求一级页面拿到数据， 抽取小说名、小说链接 创建文件夹
         response = requests.get("https://www.qidian.com/all")
+        time.sleep(30)
         xml = etree.HTML(response.text)  # 整理成xml文档对象
         Bigtit_list = xml.xpath('//div[@class="book-mid-info"]/h4/a/text()')
         Bigscr_list = xml.xpath('//div[@class="book-mid-info"]/h4/a/@href')
@@ -45,6 +47,7 @@ class Spider(object):
         print(Bigtit)
         print(Bigsrc)
         response = requests.get("http:" + Bigsrc+'#Catalog')
+        time.sleep(30)
         xml = etree.HTML(response.text)
         print(xml.xpath('//a/text()'))
         Littit_list = xml.xpath('//ul[@class="cf"]//li/a/text()')
@@ -53,6 +56,7 @@ class Spider(object):
         print(Litsrc_list)
         for Littit, Litsrc in zip(Littit_list, Litsrc_list):
             print(Littit, Litsrc)
+            time.sleep(30)
             # self.finally_file(Littit=Littit, Litsrc=Litsrc, Bigtit=Bigtit)
 
     # 3. 请求三级页面拿到数据， 抽取文章内容，保存数据
