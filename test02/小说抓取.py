@@ -42,13 +42,18 @@ class Spider(object):
 
     # 2. 请求二级页面乃刀数据， 抽取章节名、那链接
     def next_file(self, Bigtit, Bigsrc):
-        response = requests.get("http:" + Bigsrc)
+        print(Bigtit)
+        print(Bigsrc)
+        response = requests.get("http:" + Bigsrc+'#Catalog')
         xml = etree.HTML(response.text)
+        print(xml.xpath('//a/text()'))
         Littit_list = xml.xpath('//ul[@class="cf"]//li/a/text()')
         Litsrc_list = xml.xpath('//ul[@class="cf"]//li/a/@href')
+        print(Littit_list)
+        print(Litsrc_list)
         for Littit, Litsrc in zip(Littit_list, Litsrc_list):
-            # print(Littit, Litsrc)
-            self.finally_file(Littit=Littit, Litsrc=Litsrc, Bigtit=Bigtit)
+            print(Littit, Litsrc)
+            # self.finally_file(Littit=Littit, Litsrc=Litsrc, Bigtit=Bigtit)
 
     # 3. 请求三级页面拿到数据， 抽取文章内容，保存数据
     def finally_file(self, Littit, Litsrc, Bigtit):
