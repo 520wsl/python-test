@@ -61,7 +61,8 @@ class Spider(object):
 
         while flip_flag:
             time.sleep(1)
-            print("\n[DEBUG INFO]: 请求网址： {}".format(request_url))
+            print("┍")
+            print("├  [DEBUG INFO]: 请求网址： {}".format(request_url))
             # 1. 请求一级页面拿到数据， 抽取小说名、小说链接、小说封面、小说作者、类型、小说进度状态、小说简介
             try:
                 response = requests.get(url=request_url)
@@ -116,9 +117,9 @@ class Spider(object):
                             "book_catalog": book_catalog,
                             "book_chapter_total_cnt": book_chapter_total_cnt
                         }
-                # print(book_info)
-                book_id = self.save_info_to_mysql(book_info)
-                self.save_catalog_to_mysql(book_id, book_info)
+                        # print(book_info)
+                        book_id = self.save_info_to_mysql(book_info)
+                        self.save_catalog_to_mysql(book_id, book_info)
 
                 next_page = self.next_page(request_url)
                 if len(next_page) > 0:
@@ -135,7 +136,8 @@ class Spider(object):
         i = 1
         while flip_flag:
             try:
-                print("\n\tnext_page:第 {} 次 请求的URL： {}".format(i, request_url))
+                print("┍")
+                print("├  next_page:  第 {} 次 请求的URL： {}".format(i, request_url))
                 response = requests.get(url=request_url)
                 xml = etree.HTML(response.text)
                 next_src = xml.xpath('//*[@id="page-container"]/div/ul/li[last()]/a/@href')
@@ -143,17 +145,17 @@ class Spider(object):
                     next_page = "https:" + next_src[0]
                     flip_flag = False
                 else:
-                    self.setListData(name='bookListNextErrorSrc', lists=[i, request_url])
                     i += 1
                     if i > 30:
                         flip_flag = False
-                time.sleep(10)
+                        self.setListData(name='bookListNextErrorSrc', lists=[i, request_url])
+                time.sleep(1)
             except:
-                self.setListData(name='bookListNextErrorSrc', lists=[i, request_url])
                 i += 1
                 if i > 30:
                     flip_flag = False
-                time.sleep(10)
+                    self.setListData(name='bookListNextErrorSrc', lists=[i, request_url])
+                time.sleep(1)
 
         return next_page
 
@@ -181,7 +183,9 @@ class Spider(object):
         i = 1
         while flip_flag:
             try:
-                print("\n\tnext_file:第 {} 次 请求的URL： {}".format(i, request_url))
+                time.sleep(1)
+                print("\t├")
+                print("\t├  书籍 目录URL 【 %s 】：【 %s 】" % (i, request_url))
                 response = requests.get(url=request_url)
                 response.encoding = "utr-8"
                 category = json.loads(response.text)
@@ -189,15 +193,18 @@ class Spider(object):
                     category_data = category['data']
                     flip_flag = False
                 else:
-                    self.setListData(name='bookCatalogErrorSrc', lists=[i, request_url])
                     i += 1
+                    time.sleep(1)
                     if i > 30:
                         flip_flag = False
+                        self.setListData(name='bookCatalogErrorSrc', lists=[i, request_url])
             except:
-                self.setListData(name='bookCatalogErrorSrc', lists=[request_url])
                 i += 1
+                time.sleep(1)
                 if i > 30:
                     flip_flag = False
+                    self.setListData(name='bookCatalogErrorSrc', lists=[request_url])
+
         return category_data
 
     def setListData(self, name='bookList', lists=[]):
@@ -296,12 +303,12 @@ class Spider(object):
 
             save_book_catalog_res = self.batchAdd(save_book_catalog_mysql, save_catalog_data)
             if save_book_catalog_res:
-                print('\t\t\t书本 【 %s 】| book_id 【 %s 】  章节 【 %s 】| catalog_id 【 %s 】  保存成功' % (
-                    book_info['book_tit'], book_id, item['cN'], id))
 
                 catalog_id_tup = self.get_book_catalog_id(book_id, book_info['book_tit'], item['id'], item['cN'])
                 if len(catalog_id_tup) > 0:
                     catalog_id = catalog_id_tup[0][0]
+                    print('\t\t\t\t\t├')
+                    print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (item['cN'], catalog_id))
                     if item['vS'] == 0:
                         self.finally_file(catalog_id, item['cN'], catalog_src)
                     else:
@@ -312,14 +319,13 @@ class Spider(object):
                                      lists=[save_book_catalog_mysql, save_catalog_data])
 
             else:
-                print('\t\t\t书本 【 %s 】| book_id 【 %s 】  章节 【 %s 】| catalog_id 【 %s 】  保存失败' % (
-                    book_info['book_tit'], book_id, item['cN'], id))
+                print('\t\t\t\t\t├  章节 【 %s 】 | catalog_id 【 %s 】  目录保存失败' % (item['cN'], catalog_id))
                 self.setListData(name='saveBookCatalogDataError', lists=[save_book_catalog_mysql, save_catalog_data])
 
     def finally_file(self, catalog_id, catalog_title, catalog_src):
 
         request_url = "https://read.qidian.com/chapter/" + catalog_src
-        print("\n\t\tfinally_file:请求的URL： {}".format(request_url))
+        print("\t\t\t\t\t├  章节 【 %s 】| 内容URL 【 %s 】" % (catalog_title, request_url))
 
         response = requests.get(request_url)
         xml = etree.HTML(response.text)
@@ -348,9 +354,9 @@ class Spider(object):
 
         save_book_info_res = self.batchAdd(book_catalog_txt_mysql, ave_catalog_txt_data)
         if save_book_info_res:
-            print('\t\t\t章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 保存成功' % (catalog_title, catalog_id, id))
+            print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (catalog_title, catalog_id, id))
         else:
-            print('\t\t\t章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  保存失败' % (catalog_title, catalog_id, id))
+            print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (catalog_title, catalog_id, id))
             self.setListData(name='saveCatalogTxtDataError', lists=[book_catalog_txt_mysql, ave_catalog_txt_data])
         time.sleep(1)
 
@@ -379,9 +385,9 @@ class Spider(object):
 
         save_book_info_res = self.batchAdd(save_book_info_mysql, save_book_info_data)
         if save_book_info_res:
-            print('\t书本 【 %s 】| book_id 【 %s 】 保存成功' % (book_info['book_tit'], id))
+            print('\t├  书籍 【 %s 】 信息| book_id 【 %s 】 保存成功' % (book_info['book_tit'], id))
         else:
-            print('\t书本 【 %s 】| book_id 【 %s 】  保存失败' % (book_info['book_tit'], id))
+            print('\t├  书籍 【 %s 】 信息 | book_id 【 %s 】 保存失败' % (book_info['book_tit'], id))
             self.setListData(name='saveBookInfoDataError', lists=[save_book_info_mysql, save_book_info_data])
 
         return id
