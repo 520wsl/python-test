@@ -28,8 +28,8 @@ from lxml import etree
 # div  online
 environment = 'dev'
 
-url = "https://www.qidian.com/all"
-# url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=3"
+# url = "https://www.qidian.com/all"
+url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=2"
 header = {
     "Host": "www.zhipin.com",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36"
@@ -147,19 +147,19 @@ class BaseMySql(object):
 
 
 class MySql(BaseMySql):
-    def get_book_id(self, book_Id, title, platform, platform_src):
-        get_book_id_mysql = 'SELECT id FROM book WHERE book_Id= %d AND title= "%s" AND platform = "%s" AND platform_src = "%s"' % (
-            int(book_Id), title, platform, platform_src)
+    def get_book_id(self, book_Id, platform, platform_src):
+        get_book_id_mysql = 'SELECT id FROM book WHERE book_Id= %d AND platform = "%s" AND platform_src = "%s"' % (
+            int(book_Id), platform, platform_src)
         return self.getListData(get_book_id_mysql)
 
-    def get_book_catalog_id(self, book_Id, book_tit, catalog_id, title):
-        get_book_catalog_id_mysql = 'SELECT id FROM catalogs WHERE book_Id= %d AND book_title= "%s" AND catalog_id = "%s" AND title = "%s"' % (
-            int(book_Id), book_tit, catalog_id, title)
+    def get_book_catalog_id(self, book_Id, catalog_id):
+        get_book_catalog_id_mysql = 'SELECT id FROM catalogs WHERE book_Id= %d AND catalog_id = "%s"' % (
+            int(book_Id), catalog_id)
         return self.getListData(get_book_catalog_id_mysql)
 
-    def get_book_catalog_txt_id(self, catalog_id, catalog_title):
-        get_catalog_txt_id_mysql = 'SELECT id FROM txt WHERE catalog_id= %d AND catalog_title = "%s" ' % (
-            int(catalog_id), catalog_title)
+    def get_book_catalog_txt_id(self, catalog_id):
+        get_catalog_txt_id_mysql = 'SELECT id FROM txt WHERE catalog_id= %d ' % (
+            int(catalog_id))
         return self.getListData(get_catalog_txt_id_mysql)
 
     def save_book_info_to_mysql(self, save_book_info_data):
@@ -209,6 +209,37 @@ class Novel(object):
         self._data_ = Data()
         self._r_ = Redis()
 
+    def request_api_data(self, request_url):
+        print("\t├")
+        print("\t├  API ：【 %s 】 请求" % (request_url))
+        response = requests.get(url=request_url)
+        # print(response)
+        response.encoding = "utr-8"
+        category = json.loads(response.text)
+        # print(category)
+        try:
+            return category['data']
+        except:
+            print("\t├  API ：【 %s 】 请求 ==》 失败 ==> %s" % (request_url, str(category)))
+            self._r_.setListData(name='request_api_data', lists=[str(request_url + str(category))])
+            return {}
+
+    def get_api_data(self, request_url):
+        category_data = {}
+        flip_flag = True
+        i = 1
+        while flip_flag:
+            category_data = self.request_api_data(request_url=request_url)
+            if len(category_data) > 0:
+                flip_flag = False
+            else:
+                print('\t├  第 %s 次请求失败' % i)
+                i += 1
+                time.sleep(10)
+                if i > 30:
+                    flip_flag = False
+        return category_data
+
     def get_next_page_path(self, request_url, xpath):
         next_page = ''
         flip_flag = True
@@ -224,15 +255,19 @@ class Novel(object):
                     next_page = "https:" + next_src[0]
                     flip_flag = False
                 else:
+                    print('\t├  第 %s 次请求失败' % i)
                     i += 1
+                    time.sleep(10)
                     if i > 30:
                         flip_flag = False
-                        self._r_.setListData(name='get_next_page_path', lists=[i, request_url])
+                        self._r_.setListData(name='get_next_page_path', lists=[str(i, request_url)])
             except:
+                print('\t├  第 %s 次请求失败' % i)
                 i += 1
+                time.sleep(10)
                 if i > 30:
                     flip_flag = False
-                    self._r_.setListData(name='get_next_page_path', lists=[i, request_url])
+                    self._r_.setListData(name='get_next_page_path', lists=[str(i, request_url)])
 
         return next_page
 
@@ -254,6 +289,15 @@ class Spider(Novel):
                 })
         return info_list
 
+    def get_book_catalog_list(self, book_id):
+        # request_url = "https://read.qidian.com/ajax/book/category?_csrfToken=&bookId=1012797863"
+        request_url = "https://read.qidian.com/ajax/book/category?_csrfToken=&bookId=" + book_id
+        book_content = self.get_api_data(request_url=request_url)
+        return {
+            'book_catalog': self.format_book_catalog_info_list(data=book_content['vs']),
+            'book_chapter_total_cnt': book_content['chapterTotalCnt']
+        }
+
     def format_book_info_list(self, info):
         book_info_list = []
         book = {}
@@ -262,12 +306,6 @@ class Spider(Novel):
             book[key] = info.xpath(value)
 
         for item in zip(*book.values()):
-            book_content = self.next_file(bookId=list(item)[9])
-            # print(book_content)
-            book_chapter_total_cnt = book_content['chapterTotalCnt']
-            vs = book_content['vs']
-            book_catalog = self.format_book_catalog_info_list(data=vs)
-            # print(book_catalog)
             book_info_list.append({
                 'book_img_src': list(item)[0],
                 'book_tit': list(item)[1],
@@ -281,11 +319,19 @@ class Spider(Novel):
                 "book_id": list(item)[9],
                 'book_gender': gender,
                 "platform": platform,
-                "platform_src": platform_src,
-                "book_catalog": book_catalog,
-                "book_chapter_total_cnt": book_chapter_total_cnt
+                "platform_src": platform_src
             })
+        return book_info_list
 
+    def format_book_list(self, book_list):
+        book_info_list = []
+        for info in book_list:
+            book_info = self.format_book_info_list(info=info)
+            for item in book_info:
+                book_catalog_list = self.get_book_catalog_list(book_id=item['book_id'])
+                item['book_chapter_total_cnt'] = book_catalog_list['book_chapter_total_cnt']
+                item['book_catalog'] = book_catalog_list['book_catalog']
+                book_info_list.append(item)
         return book_info_list
 
     def get_book_list(self):
@@ -301,11 +347,10 @@ class Spider(Novel):
                 response = requests.get(url=request_url)
                 xml = etree.HTML(response.text)  # 整理成xml文档对象
                 book_list = xml.xpath('//ul[@class="all-img-list cf"]//li')
-                for info in book_list:
-                    book_info = self.format_book_info_list(info=info)
-                    for item in book_info:
-                        book_id = self.save_info_to_mysql(book_info=item)
-                        self.save_catalog_to_mysql(book_id=book_id, book_info=item)
+                book_info_list = self.format_book_list(book_list=book_list)
+                for item in book_info_list:
+                    book_id = self.save_info_to_mysql(book_info=item)
+                    book_catalog_id = self.save_catalog_to_mysql(book_id=book_id, book_info=item)
 
                 next_page_xpath = '//*[@id="page-container"]/div/ul/li[last()]/a/@href'
                 next_page = self.get_next_page_path(request_url=request_url, xpath=next_page_xpath)
@@ -314,46 +359,17 @@ class Spider(Novel):
                 else:
                     flip_flag = False
             except:
-                self._r_.setListData(name='bookListErrorSrc', lists=[request_url])
+                self._r_.setListData(name='bookListErrorSrc', lists=[str(request_url)])
                 flip_flag = False
-
-    def next_file(self, bookId):
-        request_url = "https://read.qidian.com/ajax/book/category?_csrfToken=&bookId=" + bookId
-        category_data = {}
-        flip_flag = True
-        i = 1
-        while flip_flag:
-            try:
-                print("\t├")
-                print("\t├  书籍 目录URL 【 %s 】：【 %s 】" % (i, request_url))
-                response = requests.get(url=request_url)
-                response.encoding = "utr-8"
-                category = json.loads(response.text)
-                if len(category['data']) > 0:
-                    category_data = category['data']
-                    flip_flag = False
-                else:
-                    i += 1
-                    time.sleep(30)
-                    if i > 30:
-                        flip_flag = False
-                        self._r_.setListData(name='bookCatalogErrorSrc', lists=[i, request_url])
-            except:
-                i += 1
-                time.sleep(30)
-                if i > 30:
-                    flip_flag = False
-                    self._r_.setListData(name='bookCatalogErrorSrc', lists=[request_url])
-        return category_data
 
     def save_catalog_to_mysql(self, book_id, book_info):
         if book_id <= 0:
-            book_id_tup = self._mysql_.get_book_id(book_info['book_id'], book_info['book_tit'], book_info['platform'],
+            book_id_tup = self._mysql_.get_book_id(book_info['book_id'], book_info['platform'],
                                                    book_info['platform_src'])
             if len(book_id_tup) > 0:
                 book_id = book_id_tup[0][0]
         for item in book_info['book_catalog']:
-            catalog_id_tup = self._mysql_.get_book_catalog_id(book_id, book_info['book_tit'], item['id'], item['cN'])
+            catalog_id_tup = self._mysql_.get_book_catalog_id(book_id, item['id'])
             if len(catalog_id_tup) > 0:
                 catalog_id = catalog_id_tup[0][0]
             else:
@@ -384,8 +400,7 @@ class Spider(Novel):
                     print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (item['cN'], catalog_id))
                     self.finally_file(catalog_id, item['cN'], catalog_src)
                 else:
-                    catalog_id_tup = self._mysql_.get_book_catalog_id(book_id, book_info['book_tit'], item['id'],
-                                                                      item['cN'])
+                    catalog_id_tup = self._mysql_.get_book_catalog_id(book_id, item['id'])
                     if len(catalog_id_tup) > 0:
                         catalog_id = catalog_id_tup[0][0]
                         print('\t\t\t\t\t├')
@@ -399,12 +414,11 @@ class Spider(Novel):
                                 print('\t\t\t\t\t├  章节 【 %s 】 内容 | catalog_id 【 %s 】 会员章节 ==> 跳过' % (
                                     item['cN'], catalog_id))
                     else:
-                        self._r_.setListData(name='saveBookCatalogDataError',
-                                             lists=[save_catalog_data])
+                        self._r_.setListData(name='saveBookCatalogDataError', lists=[str(save_catalog_data)])
             else:
                 print('\t\t\t\t\t├')
                 print('\t\t\t\t\t├  章节 【 %s 】 | catalog_id 【 %s 】  目录保存失败' % (item['cN'], catalog_id))
-                self._r_.setListData(name='saveBookCatalogDataError', lists=[save_catalog_data])
+                self._r_.setListData(name='saveBookCatalogDataError', lists=[str(save_catalog_data)])
 
     def finally_file(self, catalog_id, catalog_title, catalog_src):
         request_url = "https://read.qidian.com/chapter/" + catalog_src
@@ -416,7 +430,7 @@ class Spider(Novel):
 
     def save_catalog_txt_mysql(self, catalog_id, catalog_title, article):
         ave_catalog_txt_data = []
-        book_catalog_txt_id = self._mysql_.get_book_catalog_txt_id(catalog_id, catalog_title)
+        book_catalog_txt_id = self._mysql_.get_book_catalog_txt_id(catalog_id)
         if len(book_catalog_txt_id) > 0:
             id = book_catalog_txt_id[0][0]
         else:
@@ -436,11 +450,11 @@ class Spider(Novel):
             print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (catalog_title, catalog_id, id))
         else:
             print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (catalog_title, catalog_id, id))
-            self._r_.setListData(name='saveCatalogTxtDataError', lists=[ave_catalog_txt_data])
+            self._r_.setListData(name='saveCatalogTxtDataError', lists=[str(ave_catalog_txt_data)])
 
     def save_info_to_mysql(self, book_info):
         save_book_info_data = []
-        book_id = self._mysql_.get_book_id(book_info['book_id'], book_info['book_tit'], book_info['platform'],
+        book_id = self._mysql_.get_book_id(book_info['book_id'], book_info['platform'],
                                            book_info['platform_src'])
         if len(book_id) > 0:
             id = book_id[0][0]
@@ -458,7 +472,7 @@ class Spider(Novel):
             print('\t├  书籍 【 %s 】 信息| book_id 【 %s 】 保存成功' % (book_info['book_tit'], id))
         else:
             print('\t├  书籍 【 %s 】 信息 | book_id 【 %s 】 保存失败' % (book_info['book_tit'], id))
-            self._r_.setListData(name='saveBookInfoDataError', lists=[save_book_info_data])
+            self._r_.setListData(name='saveBookInfoDataError', lists=[str(save_book_info_data)])
 
         return id
 
