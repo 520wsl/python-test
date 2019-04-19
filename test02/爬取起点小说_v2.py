@@ -370,6 +370,10 @@ class Spider(Novel):
                 book_list = xml.xpath('//ul[@class="all-img-list cf"]//li')
                 book_info_list = self.format_book_list(book_list=book_list)
                 time.sleep(2)
+                if len(book_info_list) <= 0:
+                    time.sleep(10)
+                    print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
+                    continue
                 for item in book_info_list:
                     book_catalog_list = self.get_book_catalog_list(book_id=item['book_id'])
                     item['book_chapter_total_cnt'] = book_catalog_list['book_chapter_total_cnt']
