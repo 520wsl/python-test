@@ -25,11 +25,11 @@ import redis
 import requests
 from lxml import etree
 
-# div  online
-environment = 'div'
+# dev  online
+environment = 'online'
 
-url = "https://www.qidian.com/all"
-# url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=2"
+# url = "https://www.qidian.com/all"
+url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=10"
 header = {
     "Host": "www.qidian.com",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36"
@@ -39,8 +39,8 @@ platform = "起点中文网"
 platform_src = "https://www.qidian.com"
 book_key = ['BookImgSrc', 'BookTit', 'BookTitSrc', 'BookAuthor', 'BookAuthorSrc', 'BookAuthorChanName',
             'BookAuthorSubName', 'BookState', 'BookSynoptic', 'bookGender']
-isVs = True
-isRepeat = True
+isVs = False
+isRepeat = False
 
 config = {
     "mysql": {
@@ -362,14 +362,17 @@ class Spider(Novel):
                 book_list = xml.xpath('//ul[@class="all-img-list cf"]//li')
                 book_info_list = self.format_book_list(book_list=book_list)
                 time.sleep(2)
-                print(book_info_list)
                 for item in book_info_list:
                     book_catalog_list = self.get_book_catalog_list(book_id=item['book_id'])
                     item['book_chapter_total_cnt'] = book_catalog_list['book_chapter_total_cnt']
                     item['book_catalog'] = book_catalog_list['book_catalog']
                     book_id = self.save_info_to_mysql(book_info=item)
                     if book_id > 0:
-                        book_catalog_id = self.save_catalog_to_mysql(book_id=book_id, book_info=item)
+                        book_catalog_txt_src_info = self.save_catalog_to_mysql(book_id=book_id, book_info=item)
+                        for book_catalog_info in book_catalog_txt_src_info:
+                            self.finally_file(catalog_id=book_catalog_info['catalog_id'],
+                                              catalog_title=book_catalog_info['catalog_title'],
+                                              catalog_src=book_catalog_info['catalog_src'], book_tit=item['book_tit'])
                     else:
                         self._r_.setListData(name='book_info_list', lists=[str(item)])
 
@@ -383,78 +386,75 @@ class Spider(Novel):
                 self._r_.setListData(name='bookListErrorSrc', lists=[str(request_url)])
                 flip_flag = False
 
+    def save_book_catalog(self, id, item, book_id, book_info, catalog_src):
+        save_catalog_data = []
+        save_catalog_data.append((
+            id, item['id'], item['cN'], catalog_src, book_id, book_info['book_tit'],
+            item['cnt'], item['uuid'], item['vS'], item['vN'], item['uT']
+        ))
+        res = self._mysql_.save_book_catalog_to_mysql(data_info=save_catalog_data)
+        if res:
+            print('\t\t\t\t\t├')
+            print(
+                '\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (book_info['book_tit'], item['cN'], id))
+        else:
+            print('\t\t\t\t\t├')
+            print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  目录保存失败' % (
+                book_info['book_tit'], item['cN'], id))
+            self._r_.setListData(name='save_book_catalog', lists=[str(save_catalog_data)])
+        return res
+
     def save_catalog_to_mysql(self, book_id, book_info):
+        book_catalog_txt_src_info = []
         for item in book_info['book_catalog']:
             id = self.get_book_catalog_id(book_Id=book_id, catalog_id=item['id'])
-            if id > 0:
-                if isRepeat:
-                    pass
-                else:
-                    print('\t\t\t\t\t├')
-                    print('\t\t\t\t\t├  章节 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (item['cN'], id))
-                    continue
-
-            save_catalog_data = []
-            if item['vS'] == 0:
-                catalog_src = item['cU']
-            else:
+            catalog_src = item['cU']
+            if item['vS'] == 1:
                 catalog_src = str(book_info['book_id']) + '/' + str(item['id'])
-            save_catalog_data.append((
-                id, item['id'], item['cN'], catalog_src, book_id, book_info['book_tit'],
-                item['cnt'], item['uuid'], item['vS'], item['vN'], item['uT']
-            ))
-
-            save_book_catalog_res = self._mysql_.save_book_catalog_to_mysql(data_info=save_catalog_data)
-            if save_book_catalog_res:
-                if id > 0:
+            if id > 0:
+                if isRepeat == False:
                     print('\t\t\t\t\t├')
-                    print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (item['cN'], id))
-                    self.finally_file(id, item['cN'], catalog_src)
-                else:
-                    id = self.get_book_catalog_id(book_Id=book_id, catalog_id=item['id'])
-                    if id > 0:
-                        print('\t\t\t\t\t├')
-                        print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (item['cN'], id))
-                        if item['vS'] == 0:
-                            self.finally_file(id, item['cN'], catalog_src)
-                        else:
-                            if isVs:
-                                self.finally_file(id, item['cN'], catalog_src)
-                            else:
-                                print('\t\t\t\t\t├  章节 【 %s 】 内容 | catalog_id 【 %s 】 会员章节 ==> 跳过' % (
-                                    item['cN'], id))
-                    else:
-                        self._r_.setListData(name='saveBookCatalogDataError', lists=[str(save_catalog_data)])
-            else:
-                print('\t\t\t\t\t├')
-                print('\t\t\t\t\t├  章节 【 %s 】 | catalog_id 【 %s 】  目录保存失败' % (item['cN'], id))
-                self._r_.setListData(name='saveBookCatalogDataError', lists=[str(save_catalog_data)])
+                    print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (
+                        book_info['book_tit'], item['cN'], id))
+                    continue
+            res = self.save_book_catalog(id, item, book_id, book_info, catalog_src)
+            if res:
+                id = self.get_book_catalog_id(book_Id=book_id, catalog_id=item['id'])
+                book_catalog_txt_src_info.append({
+                    'catalog_id': id,
+                    'catalog_title': item['cN'],
+                    'catalog_src': catalog_src
+                })
+        return book_catalog_txt_src_info
 
-    def finally_file(self, catalog_id, catalog_title, catalog_src):
-        request_url = "https://read.qidian.com/chapter/" + catalog_src
-        print("\t\t\t\t\t├  章节 【 %s 】| 内容URL 【 %s 】" % (catalog_title, request_url))
+    def finally_file(self, catalog_id, catalog_title, catalog_src, book_tit):
+        request_url = ' https://read.qidian.com/chapter/3173393/413059330'
+        # request_url = "https://read.qidian.com/chapter/" + catalog_src
+        print('\t\t\t\t\t├')
+        print("\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| 内容URL 【 %s 】" % (book_tit, catalog_title, request_url))
         response = requests.get(request_url)
         xml = etree.HTML(response.text)
         article = u"\n".join(xml.xpath('//div[@class="read-content j_readContent"]//p/text()'))
-        self.save_catalog_txt_mysql(catalog_id, catalog_title, article)
+        self.save_catalog_txt_mysql(catalog_id, catalog_title, str(article), book_tit)
 
-    def save_catalog_txt_mysql(self, catalog_id, catalog_title, article):
+    def save_catalog_txt_mysql(self, catalog_id, catalog_title, article, book_tit):
         save_catalog_txt_data = []
         id = self.get_book_catalog_txt_id(catalog_id=catalog_id)
         if id > 0:
-            if isRepeat:
-                pass
-            else:
+            if isRepeat == False:
                 print('\t\t\t\t\t├')
-                print('\t\t\t\t\t├  章节 【 %s 】 内容 | catalog_id 【 %s 】 已抓取 ==> 跳过' % (catalog_title, catalog_id))
+                print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 已抓取 ==> 跳过' % (
+                    book_tit, catalog_title, catalog_id))
                 return
 
         save_catalog_txt_data.append((id, catalog_id, catalog_title, article))
         save_book_info_res = self._mysql_.save_book_catalog_txt_to_mysql(data_info=save_catalog_txt_data)
         if save_book_info_res:
-            print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (catalog_title, catalog_id, id))
+            print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (
+                book_tit, catalog_title, catalog_id, id))
         else:
-            print('\t\t\t\t\t├  章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (catalog_title, catalog_id, id))
+            print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (
+                book_tit, catalog_title, catalog_id, id))
             self._r_.setListData(name='saveCatalogTxtDataError', lists=[str(save_catalog_txt_data)])
 
     def save_info_to_mysql(self, book_info):
