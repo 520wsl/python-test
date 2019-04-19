@@ -444,9 +444,13 @@ class Spider(Novel):
         print("\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| 内容URL 【 %s 】" % (book_tit, catalog_title, request_url))
         try:
             response = requests.get(request_url)
+            print(response)
             xml = etree.HTML(response.text)
+            print(xml)
             article = u"\n".join(xml.xpath('//div[@class="read-content j_readContent"]//p/text()'))
+            print(article)
             article = article.replace("'", "’")
+            print(article)
             self.save_catalog_txt_mysql(catalog_id, catalog_title,
                                         str(article).encode(encoding='UTF-8', errors='strict'), book_tit)
         except:
@@ -456,7 +460,9 @@ class Spider(Novel):
     def save_catalog_txt_mysql(self, catalog_id, catalog_title, article, book_tit):
         save_catalog_txt_data = []
         id = self.get_book_catalog_txt_id(catalog_id=catalog_id)
+        print(id)
         if id > 0:
+            print('isRepeat........')
             if isRepeat == False:
                 print('\t\t\t\t\t├')
                 print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 已抓取 ==> 跳过' % (

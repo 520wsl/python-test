@@ -475,14 +475,14 @@ if __name__ == "__main__":
                 'BookAuthorSubName', 'BookState', 'BookSynoptic', 'bookGender']
     config = {
         "mysql": {
-            'host': '172.30.34.210',
+            'host': '172.30.34.155',
             'port': 3306,
             'user': 'root',
-            'password': 'root',
+            'password': '123456',
             'database': 'novel_dev'
         },
         "redis": {
-            'host': '192.168.2.202',
+            'host': '172.30.34.155',
             'port': 6379,
             'db': 8
         },
@@ -503,7 +503,7 @@ if __name__ == "__main__":
     }
 
     # dev  online
-    environment = 'online'
+    environment = 'dev'
 
     # url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
     if environment == 'online':
@@ -532,4 +532,4 @@ if __name__ == "__main__":
         spider.get_book_list()
     elif config['spiderType'] == 3:
         # 从redis中获取章节链接，拿到章节内容 、存入数据库
-        spider.from_redis_get_book_catalog_info_get_book_catalog_txt_info(num=200)
+        spider.from_redis_get_book_catalog_info_get_book_catalog_txt_info(num=30)
