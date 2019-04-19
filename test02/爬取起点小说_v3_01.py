@@ -25,80 +25,6 @@ import redis
 import requests
 from lxml import etree
 
-# dev  online
-environment = 'online'
-
-# url = "https://www.qidian.com/all"
-url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
-header = {
-    "Host": "www.qidian.com",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36"
-}
-gender = 1  # 性别 1:男 2: 女
-platform = "起点中文网"
-platform_src = "https://www.qidian.com"
-book_key = ['BookImgSrc', 'BookTit', 'BookTitSrc', 'BookAuthor', 'BookAuthorSrc', 'BookAuthorChanName',
-            'BookAuthorSubName', 'BookState', 'BookSynoptic', 'bookGender']
-isVs = False
-isRepeat = False
-
-config = {
-    "mysql": {
-        'host': '172.30.34.210',
-        'port': 3306,
-        'user': 'root',
-        'password': 'root',
-        'database': 'novel_dev'
-    },
-    "redis": {
-        'host': '192.168.2.202',
-        'port': 6379,
-        'db': 8
-    },
-    'xpath': {
-        'book_img_src_list ': './div[@class="book-img-box"]/a/img/@src',
-        'book_tit_list ': './div[@class="book-mid-info"]/h4/a/text()',
-        'book_tit_src_list ': './div[@class="book-mid-info"]/h4/a/@href',
-        'book_author_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[1]/text()',
-        'book_author_src_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[1]/@href',
-        'book_chan_name_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[2]/text()',
-        'book_sub_name_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[3]/text()',
-        'book_state_list ': './div[@class="book-mid-info"]/p[@class="author"]/span[1]/text()',
-        'book_synoptic_list ': './div[@class="book-mid-info"]/p[@class="intro"]/text()',
-        'book_id_list ': './div[@class="book-mid-info"]/h4/a/@data-bid'
-    }
-}
-
-if environment == 'online':
-    isVs = False
-    isRepeat = False
-    config = {
-        "mysql": {
-            'host': '172.30.34.210',
-            'port': 3306,
-            'user': 'root',
-            'password': 'root',
-            'database': 'novel_online'
-        },
-        "redis": {
-            'host': '192.168.2.202',
-            'port': 6379,
-            'db': 12
-        },
-        'xpath': {
-            'book_img_src_list ': './div[@class="book-img-box"]/a/img/@src',
-            'book_tit_list ': './div[@class="book-mid-info"]/h4/a/text()',
-            'book_tit_src_list ': './div[@class="book-mid-info"]/h4/a/@href',
-            'book_author_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[1]/text()',
-            'book_author_src_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[1]/@href',
-            'book_chan_name_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[2]/text()',
-            'book_sub_name_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[3]/text()',
-            'book_state_list ': './div[@class="book-mid-info"]/p[@class="author"]/span[1]/text()',
-            'book_synoptic_list ': './div[@class="book-mid-info"]/p[@class="intro"]/text()',
-            'book_id_list ': './div[@class="book-mid-info"]/h4/a/@data-bid'
-        }
-    }
-
 
 class Data(object):
     def bytes_to_str(s, encoding='utf-8'):
@@ -190,11 +116,10 @@ class Redis(object):
                 data = self.r.lpop(name)
             except:
                 data = None
-                print('├  [ DEBUG INFO ] [ getListData ] Redis 服务器炸了。。。。')
+                print('├  [ DEBUG INFO ] [ getListData ] Redis 服务器炸了。。。。%s , %s' % (name, num))
             if data != None:
                 nData = Data.bytes_to_str(data, 'utf-8')
                 dataList.append(nData)
-
         return dataList
 
     # 批量添加列表
@@ -381,9 +306,15 @@ class Spider(Novel):
                     if book_id > 0:
                         book_catalog_txt_src_info = self.save_catalog_to_mysql(book_id=book_id, book_info=item)
                         for book_catalog_info in book_catalog_txt_src_info:
-                            self.finally_file(catalog_id=book_catalog_info['catalog_id'],
-                                              catalog_title=book_catalog_info['catalog_title'],
-                                              catalog_src=book_catalog_info['catalog_src'], book_tit=item['book_tit'])
+                            book_catalog_info['book_title'] = item['book_tit']
+                            if config['saveBookCatalogInfoType'] == 'redis':
+                                self._r_.setListData(name='book_catalog_info_list', lists=[str(book_catalog_info)])
+                            else:
+                                self.finally_file(catalog_id=book_catalog_info['catalog_id'],
+                                                  catalog_title=book_catalog_info['catalog_title'],
+                                                  catalog_src=book_catalog_info['catalog_src'],
+                                                  book_title=book_catalog_info['book_title'])
+
                     else:
                         self._r_.setListData(name='book_info_list', lists=[str(item)])
 
@@ -438,17 +369,21 @@ class Spider(Novel):
                 })
         return book_catalog_txt_src_info
 
-    def finally_file(self, catalog_id, catalog_title, catalog_src, book_tit):
+    def finally_file(self, catalog_id, catalog_title, catalog_src, book_title):
         request_url = "https://read.qidian.com/chapter/" + catalog_src
         print('\t\t\t\t\t├')
-        print("\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| 内容URL 【 %s 】" % (book_tit, catalog_title, request_url))
+        print("\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| 内容URL 【 %s 】" % (book_title, catalog_title, request_url))
         try:
             response = requests.get(request_url)
+            # print(response)
             xml = etree.HTML(response.text)
+            # print(xml)
             article = u"\n".join(xml.xpath('//div[@class="read-content j_readContent"]//p/text()'))
+            # print(article)
             article = article.replace("'", "’")
+            # print(article)
             self.save_catalog_txt_mysql(catalog_id, catalog_title,
-                                        str(article).encode(encoding='UTF-8', errors='strict'), book_tit)
+                                        str(article).encode(encoding='UTF-8', errors='strict'), book_title)
         except:
             print('├  [ DEBUG INFO ] [ finally_file ] Redis 存数据炸了。。。。', (id, catalog_id, catalog_title, request_url))
             self._r_.setListData(name='finally_file', lists=[str((id, catalog_id, catalog_title, request_url))])
@@ -456,7 +391,9 @@ class Spider(Novel):
     def save_catalog_txt_mysql(self, catalog_id, catalog_title, article, book_tit):
         save_catalog_txt_data = []
         id = self.get_book_catalog_txt_id(catalog_id=catalog_id)
+        # print(id)
         if id > 0:
+            # print('isRepeat........')
             if isRepeat == False:
                 print('\t\t\t\t\t├')
                 print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 已抓取 ==> 跳过' % (
@@ -500,7 +437,99 @@ class Spider(Novel):
 
         return id
 
+    def from_redis_get_book_catalog_info_get_book_catalog_txt_info(self, num=1, maxNum=360):
+        flip_flag = True
+        i = 1
+
+        while flip_flag:
+            catalog_info_list = self._r_.getListData(name="book_catalog_info_list", num=num)
+            if len(catalog_info_list) > 0:
+                i = 1
+                print('\t├  获取目录 %s' % catalog_info_list)
+                for item in catalog_info_list:
+                    info = eval(item)
+                    # print("\t\t├  抓取章节 %s" % info)
+
+                    self.finally_file(catalog_id=info['catalog_id'], catalog_title=info['catalog_title'],
+                                      catalog_src=info['catalog_src'], book_title=info['book_title'])
+            else:
+                if i < maxNum:
+                    print('\t├  暂无数据 【 %s 】 60 秒后继续' % i)
+                    i += 1
+                    time.sleep(60)
+                else:
+                    flip_flag = False
+                    print('\t├  结束抓取')
+
 
 if __name__ == "__main__":
+    url = "https://www.qidian.com/all"
+    header = {
+        "Host": "www.qidian.com",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36"
+    }
+    gender = 1  # 性别 1:男 2: 女
+    platform = "起点中文网"
+    platform_src = "https://www.qidian.com"
+    book_key = ['BookImgSrc', 'BookTit', 'BookTitSrc', 'BookAuthor', 'BookAuthorSrc', 'BookAuthorChanName',
+                'BookAuthorSubName', 'BookState', 'BookSynoptic', 'bookGender']
+    config = {
+        "mysql": {
+            'host': '172.30.34.210',
+            'port': 3306,
+            'user': 'root',
+            'password': 'root',
+            'database': 'novel_dev'
+        },
+        "redis": {
+            'host': '192.168.2.202',
+            'port': 6379,
+            'db': 8
+        },
+        'xpath': {
+            'book_img_src_list ': './div[@class="book-img-box"]/a/img/@src',
+            'book_tit_list ': './div[@class="book-mid-info"]/h4/a/text()',
+            'book_tit_src_list ': './div[@class="book-mid-info"]/h4/a/@href',
+            'book_author_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[1]/text()',
+            'book_author_src_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[1]/@href',
+            'book_chan_name_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[2]/text()',
+            'book_sub_name_list ': './div[@class="book-mid-info"]/p[@class="author"]/a[3]/text()',
+            'book_state_list ': './div[@class="book-mid-info"]/p[@class="author"]/span[1]/text()',
+            'book_synoptic_list ': './div[@class="book-mid-info"]/p[@class="intro"]/text()',
+            'book_id_list ': './div[@class="book-mid-info"]/h4/a/@data-bid'
+        },
+        'saveBookCatalogInfoType': 'mysql',  # mysql redis
+        'spiderType': 1
+    }
+
+    # dev  online
+    environment = 'online'
+
+    # url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
+    if environment == 'online':
+        url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
+        isVs = False
+        isRepeat = False
+        config["mysql"]["database"] = 'novel_online'
+        config["redis"]["db"] = 12
+        config['spiderType'] = 3
+    elif enumerate == 'test':
+        pass
+    else:
+        isVs = False
+        isRepeat = True
+        url = "https://www.qidian.com/all"
+        config['spiderType'] = 3
+
     spider = Spider()
-    spider.get_book_list()
+    if config['spiderType'] == 1:
+        config['saveBookCatalogInfoType'] = 'mysql'
+        # 一条龙服务
+        spider.get_book_list()
+    elif config['spiderType'] == 2:
+        config['saveBookCatalogInfoType'] = 'redis'
+        # 章节数据存储到redis
+        spider.get_book_list()
+    elif config['spiderType'] == 3:
+        # 从redis中获取章节链接，拿到章节内容 、存入数据库
+        spider.from_redis_get_book_catalog_info_get_book_catalog_txt_info(num=200)
