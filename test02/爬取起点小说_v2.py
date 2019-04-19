@@ -26,10 +26,10 @@ import requests
 from lxml import etree
 
 # dev  online
-environment = 'dev'
+environment = 'online'
 
 # url = "https://www.qidian.com/all"
-url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=10"
+url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
 header = {
     "Host": "www.qidian.com",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36"
@@ -442,12 +442,16 @@ class Spider(Novel):
         request_url = "https://read.qidian.com/chapter/" + catalog_src
         print('\t\t\t\t\t├')
         print("\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| 内容URL 【 %s 】" % (book_tit, catalog_title, request_url))
-        response = requests.get(request_url)
-        xml = etree.HTML(response.text)
-        article = u"\n".join(xml.xpath('//div[@class="read-content j_readContent"]//p/text()'))
-        article = article.replace("'","’")
-        print(article)
-        self.save_catalog_txt_mysql(catalog_id, catalog_title, str(article).encode(encoding='UTF-8',errors='strict'), book_tit)
+        try:
+            response = requests.get(request_url)
+            xml = etree.HTML(response.text)
+            article = u"\n".join(xml.xpath('//div[@class="read-content j_readContent"]//p/text()'))
+            article = article.replace("'", "’")
+            self.save_catalog_txt_mysql(catalog_id, catalog_title,
+                                        str(article).encode(encoding='UTF-8', errors='strict'), book_tit)
+        except:
+            print('├  [ DEBUG INFO ] [ finally_file ] Redis 存数据炸了。。。。', (id, catalog_id, catalog_title, request_url))
+            self._r_.setListData(name='finally_file', lists=[str((id, catalog_id, catalog_title, request_url))])
 
     def save_catalog_txt_mysql(self, catalog_id, catalog_title, article, book_tit):
         save_catalog_txt_data = []
@@ -472,6 +476,7 @@ class Spider(Novel):
                 self._r_.setListData(name='saveCatalogTxtDataError', lists=[str(save_catalog_txt_data)])
         except:
             print('├  [ DEBUG INFO ] [ save_book_info_res ] Redis 存数据炸了。。。。', (id, catalog_id, catalog_title, article))
+            self._r_.setListData(name='save_catalog_txt_mysql', lists=[str((id, catalog_id, catalog_title, article))])
 
     def save_info_to_mysql(self, book_info):
         data_info = []
