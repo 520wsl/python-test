@@ -26,7 +26,7 @@ import requests
 from lxml import etree
 
 # dev  online
-environment = 'online'
+environment = 'dev'
 
 # url = "https://www.qidian.com/all"
 url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=10"
@@ -315,7 +315,6 @@ class Spider(Novel):
         return info_list
 
     def get_book_catalog_list(self, book_id):
-        # request_url = "https://read.qidian.com/ajax/book/category?_csrfToken=&bookId=1012797863"
         request_url = "https://read.qidian.com/ajax/book/category?_csrfToken=&bookId=" + book_id
         book_content = self.get_api_data(request_url=request_url)
         return {
@@ -440,14 +439,15 @@ class Spider(Novel):
         return book_catalog_txt_src_info
 
     def finally_file(self, catalog_id, catalog_title, catalog_src, book_tit):
-        request_url = ' https://read.qidian.com/chapter/3173393/413059330'
-        # request_url = "https://read.qidian.com/chapter/" + catalog_src
+        request_url = "https://read.qidian.com/chapter/" + catalog_src
         print('\t\t\t\t\t├')
         print("\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| 内容URL 【 %s 】" % (book_tit, catalog_title, request_url))
         response = requests.get(request_url)
         xml = etree.HTML(response.text)
         article = u"\n".join(xml.xpath('//div[@class="read-content j_readContent"]//p/text()'))
-        self.save_catalog_txt_mysql(catalog_id, catalog_title, str(article), book_tit)
+        article = article.replace("'","’")
+        print(article)
+        self.save_catalog_txt_mysql(catalog_id, catalog_title, str(article).encode(encoding='UTF-8',errors='strict'), book_tit)
 
     def save_catalog_txt_mysql(self, catalog_id, catalog_title, article, book_tit):
         save_catalog_txt_data = []
@@ -459,8 +459,9 @@ class Spider(Novel):
                     book_tit, catalog_title, catalog_id))
                 return
 
-        save_catalog_txt_data.append((id, catalog_id, catalog_title, article))
+        print((id, catalog_id, catalog_title, article))
         try:
+            save_catalog_txt_data.append((id, catalog_id, catalog_title, article))
             save_book_info_res = self._mysql_.save_book_catalog_txt_to_mysql(data_info=save_catalog_txt_data)
             if save_book_info_res:
                 print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (
@@ -470,7 +471,7 @@ class Spider(Novel):
                     book_tit, catalog_title, catalog_id, id))
                 self._r_.setListData(name='saveCatalogTxtDataError', lists=[str(save_catalog_txt_data)])
         except:
-            print('├  [ DEBUG INFO ] [ save_book_info_res ] Redis 存数据炸了。。。。', save_catalog_txt_data)
+            print('├  [ DEBUG INFO ] [ save_book_info_res ] Redis 存数据炸了。。。。', (id, catalog_id, catalog_title, article))
 
     def save_info_to_mysql(self, book_info):
         data_info = []
