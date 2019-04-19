@@ -186,7 +186,11 @@ class Redis(object):
     def getListData(self, name="list_name1", num=1):
         dataList = []
         for i in range(int(num)):
-            data = self.r.lpop(name)
+            try:
+                data = self.r.lpop(name)
+            except:
+                data = None
+                print('├  [ DEBUG INFO ] [ getListData ] Redis 服务器炸了。。。。')
             if data != None:
                 nData = Data.bytes_to_str(data, 'utf-8')
                 dataList.append(nData)
@@ -197,8 +201,12 @@ class Redis(object):
     def setListData(self, name='list_name1', lists=[]):
         if len(lists) <= 0:
             return False
-        self.r.rpush(name, *lists)
-        return True
+        try:
+            self.r.rpush(name, *lists)
+            return True
+        except:
+            print('├  [ DEBUG INFO ] [ setListData ] Redis 服务器炸了。。。。')
+            return True
 
 
 class Novel(object):
@@ -448,14 +456,17 @@ class Spider(Novel):
                 return
 
         save_catalog_txt_data.append((id, catalog_id, catalog_title, article))
-        save_book_info_res = self._mysql_.save_book_catalog_txt_to_mysql(data_info=save_catalog_txt_data)
-        if save_book_info_res:
-            print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (
-                book_tit, catalog_title, catalog_id, id))
-        else:
-            print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (
-                book_tit, catalog_title, catalog_id, id))
-            self._r_.setListData(name='saveCatalogTxtDataError', lists=[str(save_catalog_txt_data)])
+        try:
+            save_book_info_res = self._mysql_.save_book_catalog_txt_to_mysql(data_info=save_catalog_txt_data)
+            if save_book_info_res:
+                print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (
+                    book_tit, catalog_title, catalog_id, id))
+            else:
+                print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (
+                    book_tit, catalog_title, catalog_id, id))
+                self._r_.setListData(name='saveCatalogTxtDataError', lists=[str(save_catalog_txt_data)])
+        except:
+            print('├  [ DEBUG INFO ] [ save_book_info_res ] Redis 存数据炸了。。。。', save_catalog_txt_data)
 
     def save_info_to_mysql(self, book_info):
         data_info = []
