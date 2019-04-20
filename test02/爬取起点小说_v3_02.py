@@ -141,15 +141,15 @@ class Novel(object):
         self._r_ = Redis()
 
     def request_api_data(self, request_url):
-        print("\t├")
-        print("\t├  API ：【 %s 】 请求" % (request_url))
+        print("├")
+        print("├  API ：【 %s 】 请求" % (request_url))
         response = requests.get(url=request_url)
         response.encoding = "utr-8"
         category = json.loads(response.text)
         try:
             return category['data']
         except:
-            print("\t├  API ：【 %s 】 请求 ==》 失败 ==> %s" % (request_url, str(category)))
+            print("├  API ：【 %s 】 请求 ==》 失败 ==> %s" % (request_url, str(category)))
             self._r_.setListData(name='request_api_data', lists=[str(request_url + str(category))])
             return {}
 
@@ -162,7 +162,7 @@ class Novel(object):
             if len(category_data) > 0:
                 flip_flag = False
             else:
-                print('\t├  第 %s 次请求失败' % i)
+                print('├  第 %s 次请求失败' % i)
                 i += 1
                 time.sleep(10)
                 if i > 30:
@@ -184,14 +184,14 @@ class Novel(object):
                     next_page = "https:" + next_src[0]
                     flip_flag = False
                 else:
-                    print('\t├  第 %s 次请求失败' % i)
+                    print('├  第 %s 次请求失败' % i)
                     i += 1
                     time.sleep(10)
                     if i > 30:
                         flip_flag = False
                         self._r_.setListData(name='get_next_page_path', lists=[str(i, request_url)])
             except:
-                print('\t├  第 %s 次请求失败' % i)
+                print('├  第 %s 次请求失败' % i)
                 i += 1
                 time.sleep(10)
                 if i > 30:
@@ -321,7 +321,7 @@ class Spider(Novel):
             # 1. 请求一级页面拿到数据， 抽取小说名、小说链接、小说封面、小说作者、类型、小说进度状态、小说简介
             try:
                 self.get_book_data(request_url=request_url)
-                print('\t├  抓取频率过快 360 秒后继续')
+                print('├  抓取频率过快 360 秒后继续')
                 time.sleep(360)
                 next_page_xpath = '//*[@id="page-container"]/div/ul/li[last()]/a/@href'
                 next_page = self.get_next_page_path(request_url=request_url, xpath=next_page_xpath)
@@ -341,12 +341,12 @@ class Spider(Novel):
         ))
         res = self._mysql_.save_book_catalog_to_mysql(data_info=save_catalog_data)
         if res:
-            print('\t\t\t\t\t├')
+            print('├')
             print(
-                '\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (book_info['book_tit'], item['cN'], id))
+                '├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (book_info['book_tit'], item['cN'], id))
         else:
-            print('\t\t\t\t\t├')
-            print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  目录保存失败' % (
+            print('├')
+            print('├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  目录保存失败' % (
                 book_info['book_tit'], item['cN'], id))
             self._r_.setListData(name='save_book_catalog', lists=[str(save_catalog_data)])
         return res
@@ -360,8 +360,8 @@ class Spider(Novel):
                 catalog_src = str(book_info['book_id']) + '/' + str(item['id'])
             if id > 0:
                 if isRepeat == False:
-                    print('\t\t\t\t\t├')
-                    print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (
+                    print('├')
+                    print('├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (
                         book_info['book_tit'], item['cN'], id))
                     continue
             res = self.save_book_catalog(id, item, book_id, book_info, catalog_src)
@@ -382,15 +382,15 @@ class Spider(Novel):
                             'catalog_src': catalog_src
                         })
                     else:
-                        print('\t\t\t\t\t├')
-                        print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 会员章节 ==> 跳过' % (
-                            book_info['book_tit'], item['cN'], book_id))
+                        print('├')
+                        print('├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 会员章节 ==> 跳过' % (
+                            book_info['book_tit'], item['cN'], id))
         return book_catalog_txt_src_info
 
     def finally_file(self, catalog_id, catalog_title, catalog_src, book_title):
         request_url = "https://read.qidian.com/chapter/" + catalog_src
-        print('\t\t\t\t\t├')
-        print("\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| 内容URL 【 %s 】" % (book_title, catalog_title, request_url))
+        print('├')
+        print("├  书籍 【 %s 】 章节 【 %s 】| 内容URL 【 %s 】" % (book_title, catalog_title, request_url))
         try:
             response = requests.get(request_url)
             # print(response)
@@ -413,8 +413,8 @@ class Spider(Novel):
         if id > 0:
             # print('isRepeat........')
             if isRepeat == False:
-                print('\t\t\t\t\t├')
-                print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 已抓取 ==> 跳过' % (
+                print('├')
+                print('├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 已抓取 ==> 跳过' % (
                     book_tit, catalog_title, catalog_id))
                 return
 
@@ -423,10 +423,10 @@ class Spider(Novel):
             save_catalog_txt_data.append((id, catalog_id, catalog_title, article))
             save_book_info_res = self._mysql_.save_book_catalog_txt_to_mysql(data_info=save_catalog_txt_data)
             if save_book_info_res:
-                print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (
+                print('├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (
                     book_tit, catalog_title, catalog_id, id))
             else:
-                print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (
+                print('├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (
                     book_tit, catalog_title, catalog_id, id))
                 self._r_.setListData(name='saveCatalogTxtDataError', lists=[str(save_catalog_txt_data)])
         except:
@@ -448,9 +448,9 @@ class Spider(Novel):
         if res:
             id = self.get_book_id(book_Id=book_info['book_id'], platform=book_info['platform'],
                                   platform_src=book_info['platform_src'])
-            print('\t├  书籍 【 %s 】 信息| book_id 【 %s 】 保存成功' % (book_info['book_tit'], id))
+            print('├  书籍 【 %s 】 信息| book_id 【 %s 】 保存成功' % (book_info['book_tit'], id))
         else:
-            print('\t├  书籍 【 %s 】 信息 | book_id 【 %s 】 保存失败' % (book_info['book_tit'], id))
+            print('├  书籍 【 %s 】 信息 | book_id 【 %s 】 保存失败' % (book_info['book_tit'], id))
             self._r_.setListData(name='saveBookInfoDataError', lists=[str(data_info)])
 
         return id
@@ -463,21 +463,21 @@ class Spider(Novel):
             catalog_info_list = self._r_.getListData(name="book_catalog_info_list", num=num)
             if len(catalog_info_list) > 0:
                 i = 1
-                print('\t├  获取目录 %s' % catalog_info_list)
+                print('├  获取目录 %s' % catalog_info_list)
                 for item in catalog_info_list:
                     info = eval(item)
-                    # print("\t\t├  抓取章节 %s" % info)
+                    # print("├  抓取章节 %s" % info)
 
                     self.finally_file(catalog_id=info['catalog_id'], catalog_title=info['catalog_title'],
                                       catalog_src=info['catalog_src'], book_title=info['book_title'])
             else:
                 if i < maxNum:
-                    print('\t├  暂无数据 【 %s 】 60 秒后继续' % i)
+                    print('├  暂无数据 【 %s 】 60 秒后继续' % i)
                     i += 1
                     time.sleep(60)
                 else:
                     flip_flag = False
-                    print('\t├  结束抓取')
+                    print('├  结束抓取')
 
     def creat_book_page_src_list_to_redis(self, params=[]):
         book_page_list = []
@@ -503,17 +503,17 @@ class Spider(Novel):
                     self.get_book_data(request_url=str(item))
                 cont += 1
                 if cont >= 3:
-                    print('\t├  抓取频率过快 360 秒后继续')
-                    time.sleep(360)
+                    print('├  抓取频率过快 120 秒后继续')
+                    time.sleep(120)
                     cont = 1
             else:
                 if i < maxNum:
-                    print('\t├  暂无数据 【 %s 】 60 秒后继续' % i)
+                    print('├  暂无数据 【 %s 】 60 秒后继续' % i)
                     i += 1
                     time.sleep(60)
                 else:
                     flip_flag = False
-                    print('\t├  结束抓取')
+                    print('├  结束抓取')
 
 
 if __name__ == "__main__":
@@ -557,7 +557,7 @@ if __name__ == "__main__":
     }
 
     # dev  online
-    environment = 'dev'
+    environment = 'online'
 
     # url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
     if environment == 'online':
