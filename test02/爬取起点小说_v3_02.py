@@ -280,6 +280,37 @@ class Spider(Novel):
                 book_info_list.append(item)
         return book_info_list
 
+    def get_book_data(self, request_url):
+        try:
+            response = requests.get(url=request_url)
+            xml = etree.HTML(response.text)  # 整理成xml文档对象
+            book_list = xml.xpath('//ul[@class="all-img-list cf"]//li')
+            book_info_list = self.format_book_list(book_list=book_list)
+            if len(book_info_list) <= 0:
+                time.sleep(10)
+                print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
+                return
+            for item in book_info_list:
+                book_catalog_list = self.get_book_catalog_list(book_id=item['book_id'])
+                item['book_chapter_total_cnt'] = book_catalog_list['book_chapter_total_cnt']
+                item['book_catalog'] = book_catalog_list['book_catalog']
+                book_id = self.save_info_to_mysql(book_info=item)
+                if book_id > 0:
+                    book_catalog_txt_src_info = self.save_catalog_to_mysql(book_id=book_id, book_info=item)
+                    for book_catalog_info in book_catalog_txt_src_info:
+                        book_catalog_info['book_title'] = item['book_tit']
+                        if config['saveBookCatalogInfoType'] == 'redis':
+                            self._r_.setListData(name='book_catalog_info_list', lists=[str(book_catalog_info)])
+                        else:
+                            self.finally_file(catalog_id=book_catalog_info['catalog_id'],
+                                              catalog_title=book_catalog_info['catalog_title'],
+                                              catalog_src=book_catalog_info['catalog_src'],
+                                              book_title=book_catalog_info['book_title'])
+                else:
+                    self._r_.setListData(name='get_book_data', lists=[str(item)])
+        except:
+            self._r_.setListData(name='book_page_src_list', lists=[str(request_url)])
+
     def get_book_list(self):
         request_url = url
         flip_flag = True
@@ -289,33 +320,7 @@ class Spider(Novel):
             print("├  [DEBUG INFO]: 一级页面网址： {}".format(request_url))
             # 1. 请求一级页面拿到数据， 抽取小说名、小说链接、小说封面、小说作者、类型、小说进度状态、小说简介
             try:
-                response = requests.get(url=request_url)
-                xml = etree.HTML(response.text)  # 整理成xml文档对象
-                book_list = xml.xpath('//ul[@class="all-img-list cf"]//li')
-                book_info_list = self.format_book_list(book_list=book_list)
-                time.sleep(2)
-                if len(book_info_list) <= 0:
-                    time.sleep(10)
-                    print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
-                    continue
-                for item in book_info_list:
-                    book_catalog_list = self.get_book_catalog_list(book_id=item['book_id'])
-                    item['book_chapter_total_cnt'] = book_catalog_list['book_chapter_total_cnt']
-                    item['book_catalog'] = book_catalog_list['book_catalog']
-                    book_id = self.save_info_to_mysql(book_info=item)
-                    if book_id > 0:
-                        book_catalog_txt_src_info = self.save_catalog_to_mysql(book_id=book_id, book_info=item)
-                        for book_catalog_info in book_catalog_txt_src_info:
-                            book_catalog_info['book_title'] = item['book_tit']
-                            if config['saveBookCatalogInfoType'] == 'redis':
-                                self._r_.setListData(name='book_catalog_info_list', lists=[str(book_catalog_info)])
-                            else:
-                                self.finally_file(catalog_id=book_catalog_info['catalog_id'],
-                                                  catalog_title=book_catalog_info['catalog_title'],
-                                                  catalog_src=book_catalog_info['catalog_src'],
-                                                  book_title=book_catalog_info['book_title'])
-                    else:
-                        self._r_.setListData(name='book_info_list', lists=[str(item)])
+                self.get_book_data(request_url=request_url)
                 print('\t├  抓取频率过快 360 秒后继续')
                 time.sleep(360)
                 next_page_xpath = '//*[@id="page-container"]/div/ul/li[last()]/a/@href'
@@ -364,9 +369,9 @@ class Spider(Novel):
                 if item['vS'] == 0:
                     id = self.get_book_catalog_id(book_Id=book_id, catalog_id=item['id'])
                     book_catalog_txt_src_info.append({
-                    'catalog_id': id,
-                    'catalog_title': item['cN'],
-                    'catalog_src': catalog_src
+                        'catalog_id': id,
+                        'catalog_title': item['cN'],
+                        'catalog_src': catalog_src
                     })
                 elif item['vS'] == 1:
                     if isVs:
@@ -378,7 +383,8 @@ class Spider(Novel):
                         })
                     else:
                         print('\t\t\t\t\t├')
-                        print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 会员章节 ==> 跳过' % (  book_info['book_tit'], item['cN'],book_id))
+                        print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 内容 | catalog_id 【 %s 】 会员章节 ==> 跳过' % (
+                            book_info['book_tit'], item['cN'], book_id))
         return book_catalog_txt_src_info
 
     def finally_file(self, catalog_id, catalog_title, catalog_src, book_title):
@@ -473,6 +479,42 @@ class Spider(Novel):
                     flip_flag = False
                     print('\t├  结束抓取')
 
+    def creat_book_page_src_list_to_redis(self, params=[]):
+        book_page_list = []
+        for item in params:
+            maxPageSize = int(item['maxPageSize']) + 1
+            src = item['src']
+            for i in range(1, maxPageSize):
+                book_page_list.append(src.format(i))
+        print(book_page_list)
+        self._r_.setListData(name='book_page_src_list', lists=book_page_list)
+
+    def from_redis_get_src_get_book_list(self, num=1, maxNum=43200):
+        flip_flag = True
+        i = 1
+        cont = 1
+
+        while flip_flag:
+            book_page_src_list = self._r_.getListData(name="book_page_src_list", num=num)
+            if len(book_page_src_list) > 0:
+                i = 1
+                print('├  获取书籍列表链接 %s' % book_page_src_list)
+                for item in book_page_src_list:
+                    self.get_book_data(request_url=str(item))
+                cont += 1
+                if cont >= 3:
+                    print('\t├  抓取频率过快 360 秒后继续')
+                    time.sleep(360)
+                    cont = 1
+            else:
+                if i < maxNum:
+                    print('\t├  暂无数据 【 %s 】 60 秒后继续' % i)
+                    i += 1
+                    time.sleep(60)
+                else:
+                    flip_flag = False
+                    print('\t├  结束抓取')
+
 
 if __name__ == "__main__":
     url = "https://www.qidian.com/all"
@@ -515,7 +557,7 @@ if __name__ == "__main__":
     }
 
     # dev  online
-    environment = 'online'
+    environment = 'dev'
 
     # url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
     if environment == 'online':
@@ -525,14 +567,14 @@ if __name__ == "__main__":
         isRepeat = False
         config["mysql"]["database"] = 'novel_online'
         config["redis"]["db"] = 12
-        config['spiderType'] =2
+        config['spiderType'] = 5
     elif enumerate == 'test':
         pass
     else:
         isVs = False
         isRepeat = True
         url = "https://www.qidian.com/all"
-        config['spiderType'] = 2
+        config['spiderType'] = 5
 
     spider = Spider()
     if config['spiderType'] == 1:
@@ -543,6 +585,26 @@ if __name__ == "__main__":
         config['saveBookCatalogInfoType'] = 'redis'
         # 章节数据存储到redis
         spider.get_book_list()
+
     elif config['spiderType'] == 3:
+        # https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=58384
+        # https://www.qidian.com/mm/all?orderId=&style=1&pageSize=20&siteid=0&pubflag=0&hiddenField=0&page=24338
+        params = [
+            {
+                'src': 'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page={0}',
+                'maxPageSize': '58384'
+            },
+            {
+                'src': 'https://www.qidian.com/mm/all?orderId=&style=1&pageSize=20&siteid=0&pubflag=0&hiddenField=0&page={0}',
+                'maxPageSize': '24338'
+            }
+        ]
+        spider.creat_book_page_src_list_to_redis(params=params)
+
+    elif config['spiderType'] == 4:
+        config['saveBookCatalogInfoType'] = 'redis'
+        # 章节数据存储到redis
+        spider.from_redis_get_src_get_book_list()
+    elif config['spiderType'] == 5:
         # 从redis中获取章节链接，拿到章节内容 、存入数据库
         spider.from_redis_get_book_catalog_info_get_book_catalog_txt_info(num=200)
