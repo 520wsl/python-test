@@ -314,10 +314,10 @@ class Spider(Novel):
                                                   catalog_title=book_catalog_info['catalog_title'],
                                                   catalog_src=book_catalog_info['catalog_src'],
                                                   book_title=book_catalog_info['book_title'])
-
                     else:
                         self._r_.setListData(name='book_info_list', lists=[str(item)])
-
+                print('\t├  抓取频率过快 360 秒后继续')
+                time.sleep(360)
                 next_page_xpath = '//*[@id="page-container"]/div/ul/li[last()]/a/@href'
                 next_page = self.get_next_page_path(request_url=request_url, xpath=next_page_xpath)
                 if len(next_page) > 0:
@@ -336,9 +336,10 @@ class Spider(Novel):
         ))
         res = self._mysql_.save_book_catalog_to_mysql(data_info=save_catalog_data)
         if res:
-            print('\t\t\t\t\t├')
-            print(
-                '\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (book_info['book_tit'], item['cN'], id))
+            pass
+            # print('\t\t\t\t\t├')
+            # print(
+                # '\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】  目录保存成功' % (book_info['book_tit'], item['cN'], id))
         else:
             print('\t\t\t\t\t├')
             print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  目录保存失败' % (
@@ -355,9 +356,9 @@ class Spider(Novel):
                 catalog_src = str(book_info['book_id']) + '/' + str(item['id'])
             if id > 0:
                 if isRepeat == False:
-                    print('\t\t\t\t\t├')
-                    print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (
-                        book_info['book_tit'], item['cN'], id))
+                    # print('\t\t\t\t\t├')
+                    # print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (
+                    #     book_info['book_tit'], item['cN'], id))
                     continue
             res = self.save_book_catalog(id, item, book_id, book_info, catalog_src)
             if res:
@@ -405,8 +406,9 @@ class Spider(Novel):
             save_catalog_txt_data.append((id, catalog_id, catalog_title, article))
             save_book_info_res = self._mysql_.save_book_catalog_txt_to_mysql(data_info=save_catalog_txt_data)
             if save_book_info_res:
-                print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (
-                    book_tit, catalog_title, catalog_id, id))
+                pass
+                # print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】 内容保存成功' % (
+                #     book_tit, catalog_title, catalog_id, id))
             else:
                 print('\t\t\t\t\t├  书籍 【 %s 】 章节 【 %s 】| catalog_id 【 %s 】| id 【 %s 】  内容保存失败' % (
                     book_tit, catalog_title, catalog_id, id))
@@ -503,23 +505,23 @@ if __name__ == "__main__":
     }
 
     # dev  online
-    environment = 'dev'
+    environment = 'online'
 
     # url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
     if environment == 'online':
-        url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=300"
+        url = "https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=24"
         isVs = False
         isRepeat = False
         config["mysql"]["database"] = 'novel_online'
         config["redis"]["db"] = 12
-        config['spiderType'] = 3
+        config['spiderType'] =3
     elif enumerate == 'test':
         pass
     else:
         isVs = False
         isRepeat = True
         url = "https://www.qidian.com/all"
-        config['spiderType'] = 3
+        config['spiderType'] = 2
 
     spider = Spider()
     if config['spiderType'] == 1:
@@ -532,4 +534,4 @@ if __name__ == "__main__":
         spider.get_book_list()
     elif config['spiderType'] == 3:
         # 从redis中获取章节链接，拿到章节内容 、存入数据库
-        spider.from_redis_get_book_catalog_info_get_book_catalog_txt_info(num=30)
+        spider.from_redis_get_book_catalog_info_get_book_catalog_txt_info(num=200)
