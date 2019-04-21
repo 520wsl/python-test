@@ -131,7 +131,7 @@ class Redis(object):
             return True
         except:
             print('├  [ DEBUG INFO ] [ setListData ] Redis 服务器炸了。。。。')
-            return True
+            return False
 
 
 class Novel(object):
