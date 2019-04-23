@@ -188,13 +188,6 @@ class Novel(object):
 
 
 class Spider(Novel):
-    # 1、创建小说列表页链接
-    def creat_book_page_url(self):
-        pass
-
-    def creat_book_page_url_list(self):
-        pass
-
     # 2、访问小说列表页 拿到小说列表
     def get_book_list(self, url):
         html_list = []
@@ -208,7 +201,15 @@ class Spider(Novel):
                 response = requests.get(url=url)
                 xml = etree.HTML(response.text)  # 整理成xml文档对象
                 html_list = xml.xpath('//ul[@class="all-img-list cf"]//li')
-                flip_flag = False
+                if len(html_list) > 0:
+                    flip_flag = False
+                else:
+                    print("├  请求书籍列表：【 %s 】  请求  ==》 失败 ==>  10 秒后再试" % (str(url)))
+                    i += 1
+                    time.sleep(10)
+                    if i > 30:
+                        self._r_.setListData(name='get_book_list', lists=[str(url)])
+                        flip_flag = False
             except:
                 print("├  请求书籍列表：【 %s 】  请求  ==》 失败 ==>  10 秒后再试" % (str(url)))
                 i += 1
@@ -434,8 +435,8 @@ class Spider(Novel):
 
         return article
 
-    def get_book_txt_list(self, book_info_list):
-        data_info = []
+    def format_book_catalog_info_list_data(self, book_info_list):
+        book_info_list_data = []
         for item in book_info_list:
             for catalog_info in item['catalog_list']:
                 if catalog_info['txt_id'] > 0 and isRepeat == False:
@@ -458,17 +459,30 @@ class Spider(Novel):
                 if catalog_info['vs'] == 1:
                     catalog_src = "https://read.qidian.com/chapter/" + str(item['book_id']) + '/' + str(
                         catalog_info['catalog_id'])
-                catalog_info['article'] = self.get_book_txt(catalog_id=catalog_info['id'],
-                                                            catalog_title=catalog_info['title'], book_id=item['id'],
-                                                            book_title=item['title'], catalog_src=catalog_src)
-                data_info.append((
-                    catalog_info['txt_id'],
-                    catalog_info['id'],
-                    catalog_info['title'],
-                    item['id'],
-                    item['title'],
-                    catalog_info['article']
-                ))
+                book_info_list_data.append({
+                    'catalog_id': catalog_info['id'],
+                    'catalog_title': catalog_info['title'],
+                    'book_id': item['id'],
+                    'book_title': item['title'],
+                    'catalog_src': catalog_src,
+                    'txt_id': catalog_info['txt_id']
+                })
+        return book_info_list_data
+
+    def get_book_txt_list(self, book_txt_list_data):
+        data_info = []
+        for item in book_txt_list_data:
+            item['article'] = self.get_book_txt(catalog_id=item['catalog_id'], catalog_title=item['catalog_title'],
+                                                book_id=item['book_id'],
+                                                book_title=item['book_title'], catalog_src=item['catalog_src'])
+            data_info.append((
+                item['txt_id'],
+                item['catalog_id'],
+                item['catalog_title'],
+                item['book_id'],
+                item['book_title'],
+                item['article']
+            ))
         return data_info
 
     # 7、小说文章内容列表数据 格式化 catalog_id、catalog_title、article
@@ -511,38 +525,140 @@ class SpiderModel(Spider):
         # # 7. 抓取文章内容
         book_info_list_3 = self.update_book_id_and_catalog(info_list=book_info_list_2)
         # 8. 格式化文章内容
-        book_catalog_txt_list = self.get_book_txt_list(book_info_list=book_info_list_3)
+        book_catalog_info_list = self.format_book_catalog_info_list_data(book_info_list=book_info_list_3)
+        book_catalog_txt_list = self.get_book_txt_list(book_txt_list_data=book_catalog_info_list)
         # 9. 文章内容存入 mysql txt表
         self.save_book_catalog_txt(book_catalog_txt_list=book_catalog_txt_list)
         end = time.time()
         print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
-        print('├  抓取频率过快 180 秒后继续')
-        time.sleep(180)
 
     # 8、处理模式 2.1 翻页抓取小说列表，保存目录到redis（创建小说列表页链接->小说->存储小说->章节->存储章节->章节列表存储到redis->翻页->小说）
-    def run_save_catalog_list_to_redis(self):
-        pass
+    def run_save_catalog_list_to_redis(self, url, xpath):
+        start = time.time()
+        # 1. 请求页面 获取数据
+        html_list = self.get_book_list(url=url)
+        if len(html_list) <= 0:
+            time.sleep(10)
+            print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
+            self._r_.setListData(name='book_page_list', lists=[str(url)])
+            return
+        # 2. 格式化书籍信息
+        book_list = self.format_book_list_data(book_list_html=html_list, xpath=xpath)
+        book_info_list = self.get_book_catalog_list(book_list=book_list)
+        # 4. 请求 目录API
+        book_info_list_1 = self.update_book_id_and_catalog(info_list=book_info_list)
+        # # 3. 书籍信息 存入mysql book 表
+        self.save_book(book_info_list=book_info_list_1)
+        book_info_list_2 = self.update_book_id_and_catalog(info_list=book_info_list_1)
+        # # 6. 目录信息 存入mysql catalogs表 ，拿到id,catalog_id,src
+        self.save_book_catalog(book_info_list=book_info_list_2)
+        # # 7. 抓取文章内容
+        book_info_list_3 = self.update_book_id_and_catalog(info_list=book_info_list_2)
+        # 8. 格式化文章内容
+        book_catalog_info_list = self.format_book_catalog_info_list_data(book_info_list=book_info_list_3)
+        for item in book_catalog_info_list:
+            self._r_.setListData('book_catalog_info_list', [str(item)])
+        end = time.time()
+        print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
 
     # 8、处理模式 2.2 从redis 拿到目录数据,抓取章节内容文章（从redis获取章节数据->内容->存储内容->从redis获取章节数据）
-    def run_from_redis_get_catalog_save_txt_to_redis(self):
-        pass
+    def run_from_redis_get_catalog_save_txt_to_redis(self, num=1, maxNum=43200):
+        start = time.time()
+        flip_flag = True
+        i = 1
+
+        while flip_flag:
+            catalog_info_list = self._r_.getListData(name="book_catalog_info_list", num=num)
+            if len(catalog_info_list) > 0:
+                book_catalog_info_list = []
+                i = 1
+                print('├  获取目录 %s' % catalog_info_list)
+                for info in catalog_info_list:
+                    book_catalog_info_list.append(eval(info))
+                book_catalog_txt_list = self.get_book_txt_list(book_txt_list_data=book_catalog_info_list)
+                self.save_book_catalog_txt(book_catalog_txt_list=book_catalog_txt_list)
+                print('├  抓取频率过快 60 秒后继续')
+                time.sleep(60)
+            else:
+                if i < maxNum:
+                    print('├  暂无数据 【 %s 】 60 秒后继续' % i)
+                    i += 1
+                    time.sleep(60)
+                else:
+                    flip_flag = False
+                    print('├  结束抓取')
+        end = time.time()
+        print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
+        print('├  结束抓取')
 
     # 8、处理模式 3.1 创建小说列表页链接,存入redis（创建小说列表页链接->存储到redis）
-    def run_creat_book_page_url_list_to_redis(self):
-        pass
-
-    # 8、处理模式 3.2 从redis 拿到小说列表页链接抓取小说列表，保存目录到redis（redis列表链接->小说->存储小说->章节->存储章节->章节列表存储到redis->redis列表链接）
-    def run_from_redis_get_book_list_url_save_catalog_list_to_redis(self):
-        pass
+    def run_creat_book_page_url_list_to_redis(self, params=[]):
+        book_page_list = []
+        for item in params:
+            maxPageSize = int(item['maxPageSize']) + 1
+            src = item['src']
+            for i in range(1, maxPageSize):
+                book_page_list.append(src.format(i))
+        print(book_page_list)
+        self._r_.setListData(name='book_page_url_list', lists=book_page_list)
 
 
 class Run(SpiderModel):
-    def a_dragon(self, url, xpath):
-        requests_url = url
-        # 1、获取url
-        self.run_a_dragon(url=requests_url, xpath=xpath)
-        # 2. 翻页
-        pass
+    def a_dragon(self, xpath, num=1, maxNum=43200):
+        start = time.time()
+        flip_flag = True
+        i = 1
+        while flip_flag:
+            book_page_url_list = self._r_.getListData(name="book_page_url_list", num=num)
+            if len(book_page_url_list) > 0:
+                i = 1
+                print('├  获取书籍列表链接 %s' % book_page_url_list)
+                for url in book_page_url_list:
+                    self.run_a_dragon(url=url, xpath=xpath)
+            else:
+                if i < maxNum:
+                    print('├  暂无数据 【 %s 】 60 秒后继续' % i)
+                    i += 1
+                    time.sleep(60)
+                else:
+                    flip_flag = False
+                    print('├  结束抓取')
+            print('├  抓取频率过快 180 秒后继续')
+            time.sleep(180)
+        end = time.time()
+        print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
+        print('├  结束抓取')
+
+    def save_catalog_list_to_redis(self, xpath, num=1, maxNum=43200):
+        start = time.time()
+        flip_flag = True
+        i = 1
+        while flip_flag:
+            book_page_url_list = self._r_.getListData(name="book_page_url_list", num=num)
+            if len(book_page_url_list) > 0:
+                i = 1
+                print('├  获取书籍列表链接 %s' % book_page_url_list)
+                for url in book_page_url_list:
+                    self.run_save_catalog_list_to_redis(url=url, xpath=xpath)
+            else:
+                if i < maxNum:
+                    print('├  暂无数据 【 %s 】 60 秒后继续' % i)
+                    i += 1
+                    time.sleep(60)
+                else:
+                    flip_flag = False
+                    print('├  结束抓取')
+            print('├  抓取频率过快 180 秒后继续')
+            time.sleep(180)
+        end = time.time()
+        print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
+        print('├  结束抓取')
+
+    def from_redis_get_catalog_save_txt_to_redis(self, num, maxNum):
+        self.run_from_redis_get_catalog_save_txt_to_redis(num, maxNum)
+
+    def creat_book_page_url_list_to_redis(self, params):
+        self.run_creat_book_page_url_list_to_redis(params=params)
 
 
 if __name__ == '__main__':
@@ -577,17 +693,43 @@ if __name__ == '__main__':
         'requests_url': [
             'https://www.qidian.com/all',
             'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=1000'
-        ],
-        'spiderType': 1
+        ]
     }
+    environment = 'dev'
+    spiderType = 3
     isRepeat = False
     isVs = False
-    run = Run()
 
-    # dev  online
-    environment = 'dev'
+    if environment == 'online':
+        config["mysql"]["database"] = 'novel_online'
+        config["redis"]["db"] = 12
 
     xpath = config['xpath']
     requests_url = config['requests_url']
-    for url in requests_url:
-        run.a_dragon(url=url, xpath=xpath)
+
+    run = Run()
+    if spiderType == 0:
+        # 初始化书籍，列表链接池 82722
+        params = [
+            {
+                'src': 'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page={0}',
+                'maxPageSize': '58384'
+            },
+            {
+                'src': 'https://www.qidian.com/mm/all?orderId=&style=1&pageSize=20&siteid=0&pubflag=0&hiddenField=0&page={0}',
+                'maxPageSize': '24338'
+            }
+        ]
+        run.creat_book_page_url_list_to_redis(params=params)
+    elif spiderType == 1:
+        # 一条龙服务
+        print('├  一条龙服务')
+        run.a_dragon(xpath=xpath, num=1, maxNum=43200)
+    elif spiderType == 2:
+        # 获取并存储书籍和目录信息，存储章节目录 到redis
+        print('├  获取并存储书籍和目录信息，存储章节目录 到redis')
+        run.save_catalog_list_to_redis(xpath=xpath, num=1, maxNum=43200)
+    elif spiderType == 3:
+        # 从 redis 中获取 目录信息  ，获取章节内容
+        print('├  从 redis 中获取 目录信息  ，获取章节内容')
+        run.from_redis_get_catalog_save_txt_to_redis(num=3000, maxNum=43200)
