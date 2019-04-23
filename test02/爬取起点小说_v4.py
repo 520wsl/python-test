@@ -173,12 +173,10 @@ class Novel(object):
 
     def get_book_catalog_data_list(self, book_id):
         list_tup = self._mysql_.get_book_catalog_data_list_tup(book_id)
-        # print(list_tup)
         return list_tup
 
     def get_book_catalog_txt_data_list(self, book_id):
         list_tup = self._mysql_.get_book_catalog_txt_data_list_tup(book_id)
-        print(list_tup)
         return list_tup
 
     def get_book_catalog_txt_id(self, catalog_id):
@@ -286,7 +284,6 @@ class Spider(Novel):
         i = 1
         while flip_flag:
             print("├  API ：【 %s 】 请求" % (request_url))
-
             try:
                 response = requests.get(url=request_url)
                 response.encoding = "utr-8"
@@ -311,9 +308,7 @@ class Spider(Novel):
                 "bookId": item['book_id']
             }
             request_url = platform_src + "/ajax/book/category?/job_detail/?" + urlencode(params)
-            # print(request_url)
             catalog_info_list = self.request_api_data(request_url=request_url)
-            # print(catalog_list)
             item['catalog_list'] = self.format_book_catalog_list_data(catalog_list=catalog_info_list['vs'])
             item['chapter_total_cnt'] = catalog_info_list['chapterTotalCnt']
             book_info_list.append(item)
@@ -355,21 +350,13 @@ class Spider(Novel):
                 '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】  存储' % (
                     book_info['title'], book_info['id'], book_info['book_id'], catalog_info['title'], catalog_info['id'],
                     catalog_info['catalog_id']))
-        # print(data_info)
         return data_info
 
     def save_book_catalog(self, book_info_list):
         for item in book_info_list:
-            # print(item['id'])
             catalog_info_list = self.format_book_catalog_data(book_info=item)
-            print(catalog_info_list)
             save_catalog_res = self._mysql_.save_book_catalog_to_mysql(data_info=catalog_info_list)
-            # print(save_catalog_res)
             if save_catalog_res == False:
-                # print('├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 | chapter_total_cnt 【 %s 】 目录存储  ==>  失败( %s )' % (
-                #     item['title'], item['id'], item['book_id'], item['chapter_total_cnt'], len(catalog_info_list)))
-                # self._r_.setListData(name='book_info_list', lists=[str(catalog_info_list)])
-                # continue
                 print('├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 | chapter_total_cnt 【 %s 】 目录存储  ==>  失败( %s )' % (
                     item['title'], item['id'], item['book_id'], item['chapter_total_cnt'], len(catalog_info_list)))
                 for catalog_info in catalog_info_list:
@@ -399,14 +386,9 @@ class Spider(Novel):
                                           platform_src=item['platform_src'])
             catalog_id_list = self.get_book_catalog_data_list(book_id=item['id'])
             txt_id_list = self.get_book_catalog_txt_data_list(book_id=item['id'])
-            # print(txt_id_list)
-            # print(item['id'])
-            # print(catalog_id_list)
             for catalog_info in item['catalog_list']:
                 catalog_info['id'] = self.from_list_get_id(catalog_id_list, catalog_info['catalog_id'])
                 catalog_info['txt_id'] = self.from_list_get_id(txt_id_list, catalog_info['id'])
-                # print(catalog_info['id'])
-                # print(catalog_info['txt_id'])
                 catalog_list.append(catalog_info)
 
             item['catalog_list'] = catalog_list
@@ -453,14 +435,7 @@ class Spider(Novel):
     def get_book_txt_list(self, book_info_list):
         data_info = []
         for item in book_info_list:
-            # print(item['id'])
-            # print(item['title'])
             for catalog_info in item['catalog_list']:
-                # print(catalog_info['id'])
-                # print(catalog_info['title'])
-
-                # print(catalog_info['id'])
-                # print(catalog_info['txt_id'])
                 if catalog_info['txt_id'] > 0 and isRepeat == False:
                     print(
                         '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】 | vs 【 %s 】 | txt_id 【 %s 】  已抓取 ==> 跳过' % (
@@ -484,7 +459,6 @@ class Spider(Novel):
                 catalog_info['article'] = self.get_book_txt(catalog_id=catalog_info['id'],
                                                             catalog_title=catalog_info['title'], book_id=item['id'],
                                                             book_title=item['title'], catalog_src=catalog_src)
-                # print(catalog_info['article'])
                 data_info.append((
                     catalog_info['txt_id'],
                     catalog_info['id'],
@@ -517,7 +491,6 @@ class SpiderModel(Spider):
         start = time.time()
         # 1. 请求页面 获取数据
         html_list = self.get_book_list(url=url)
-        # print(book_list_html)
         if len(html_list) <= 0:
             time.sleep(10)
             print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
@@ -526,14 +499,10 @@ class SpiderModel(Spider):
         # 2. 格式化书籍信息
         book_list = self.format_book_list_data(book_list_html=[html_list[0]], xpath=xpath)
         book_info_list = self.get_book_catalog_list(book_list=book_list)
-        # print(book_list)
         # 4. 请求 目录API
         book_info_list_1 = self.update_book_id_and_catalog(info_list=book_info_list)
-        # print(book_info_list[0])
         # # 3. 书籍信息 存入mysql book 表
-        # print(book_info_list)
         self.save_book(book_info_list=book_info_list_1)
-        # print(book_info_list)
         book_info_list_2 = self.update_book_id_and_catalog(info_list=book_info_list_1)
         # # 6. 目录信息 存入mysql catalogs表 ，拿到id,catalog_id,src
         self.save_book_catalog(book_info_list=book_info_list_2)
