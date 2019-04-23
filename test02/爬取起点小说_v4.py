@@ -337,7 +337,8 @@ class Spider(Novel):
             if catalog_info['id'] > 0 and isRepeat == False:
                 print(
                     '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (
-                        book_info['title'], book_info['id'], book_info['book_id'], catalog_info['title'], catalog_info['id'],
+                        book_info['title'], book_info['id'], book_info['book_id'], catalog_info['title'],
+                        catalog_info['id'],
                         catalog_info['catalog_id']))
                 continue
 
@@ -348,7 +349,8 @@ class Spider(Novel):
             ))
             print(
                 '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】  存储' % (
-                    book_info['title'], book_info['id'], book_info['book_id'], catalog_info['title'], catalog_info['id'],
+                    book_info['title'], book_info['id'], book_info['book_id'], catalog_info['title'],
+                    catalog_info['id'],
                     catalog_info['catalog_id']))
         return data_info
 
@@ -497,7 +499,7 @@ class SpiderModel(Spider):
             self._r_.setListData(name='book_page_list', lists=[str(url)])
             return
         # 2. 格式化书籍信息
-        book_list = self.format_book_list_data(book_list_html=[html_list[0]], xpath=xpath)
+        book_list = self.format_book_list_data(book_list_html=html_list, xpath=xpath)
         book_info_list = self.get_book_catalog_list(book_list=book_list)
         # 4. 请求 目录API
         book_info_list_1 = self.update_book_id_and_catalog(info_list=book_info_list)
@@ -574,7 +576,7 @@ if __name__ == '__main__':
         'saveBookCatalogInfoType': 'mysql',  # mysql redis
         'requests_url': [
             'https://www.qidian.com/all',
-            # 'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=1000'
+            'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=1000'
         ],
         'spiderType': 1
     }
