@@ -110,17 +110,21 @@ class BaseMySql(object):
 
 
 class MySql(BaseMySql):
-    def get_book_id_tup(self, book_Id, platform, platform_src):
-        sql = 'SELECT id FROM book WHERE book_Id= %d AND platform = "%s" AND platform_src = "%s"' % (
-            int(book_Id), platform, platform_src)
+    def get_book_id_tup(self, book_id, platform, platform_src):
+        sql = 'SELECT id FROM book WHERE book_id= %d AND platform = "%s" AND platform_src = "%s"' % (
+            int(book_id), platform, platform_src)
         return self.getListData(sql=sql)
 
-    def get_book_catalog_id_tup(self, book_Id, catalog_id):
-        sql = 'SELECT id FROM catalogs WHERE book_Id= %d AND catalog_id = "%s"' % (int(book_Id), catalog_id)
+    def get_book_catalog_id_tup(self, book_id, catalog_id):
+        sql = 'SELECT id FROM catalogs WHERE book_id= %d AND catalog_id = "%s"' % (int(book_id), catalog_id)
         return self.getListData(sql=sql)
 
-    def get_book_catalog_data_list_tup(self, book_Id):
-        sql = 'SELECT id,catalog_id from catalogs WHERE book_Id= %d ' % int(book_Id)
+    def get_book_catalog_data_list_tup(self, book_id):
+        sql = 'SELECT id,catalog_id from catalogs WHERE book_id= %d ' % int(book_id)
+        return self.getListData(sql=sql)
+
+    def get_book_catalog_txt_data_list_tup(self, book_id):
+        sql = 'SELECT id,catalog_id from txt WHERE book_id= %d ' % int(book_id)
         return self.getListData(sql=sql)
 
     def get_book_catalog_txt_id_tup(self, catalog_id):
@@ -128,15 +132,15 @@ class MySql(BaseMySql):
         return self.getListData(sql=sql)
 
     def save_book_info_to_mysql(self, data_info):
-        sql = "INSERT INTO `book` (`id`, `book_Id`, `src`,`title`,`img_url`,`state`,`author`,`chan_name`,`sub_name`,`chapter_total_cnt`,`gender`,`synoptic`,`platform`,`platform_src`)  VALUES (%s,%s, %s, %s,%s, %s, %s,%s,%s, %s, %s,%s, %s, %s) ON DUPLICATE KEY UPDATE id = VALUES (id), book_Id = VALUES (book_Id), src = VALUES (src),title = VALUES (title),img_url = VALUES (img_url),state = VALUES (state),author = VALUES (author),chan_name = VALUES (chan_name),sub_name = VALUES (sub_name),chapter_total_cnt = VALUES (chapter_total_cnt),gender = VALUES (gender),synoptic = VALUES (synoptic),platform = VALUES (platform),platform_src = VALUES (platform_src), nex = nex+1"
+        sql = "INSERT INTO `book` (`id`, `book_id`, `src`,`title`,`img_url`,`state`,`author`,`chan_name`,`sub_name`,`chapter_total_cnt`,`gender`,`synoptic`,`platform`,`platform_src`)  VALUES (%s,%s, %s, %s,%s, %s, %s,%s,%s, %s, %s,%s, %s, %s) ON DUPLICATE KEY UPDATE id = VALUES (id), book_id = VALUES (book_id), src = VALUES (src),title = VALUES (title),img_url = VALUES (img_url),state = VALUES (state),author = VALUES (author),chan_name = VALUES (chan_name),sub_name = VALUES (sub_name),chapter_total_cnt = VALUES (chapter_total_cnt),gender = VALUES (gender),synoptic = VALUES (synoptic),platform = VALUES (platform),platform_src = VALUES (platform_src), nex = nex+1"
         return self.batchAdd(sql=sql, data_info=data_info)
 
     def save_book_catalog_to_mysql(self, data_info):
-        sql = "INSERT INTO `catalogs` (`id`,`catalog_id`,`title`, `src`,`book_Id`,`book_title`,`cnt`,`uuid`,`vs`,`vn`,`update_time`)  VALUES (%s,%s, %s, %s,%s, %s, %s,%s,%s, %s, %s) ON DUPLICATE KEY UPDATE id = VALUES (id),catalog_id = VALUES (catalog_id),title = VALUES (title), src = VALUES (src),book_Id = VALUES (book_Id),book_title = VALUES (book_title),cnt = VALUES (cnt),uuid = VALUES (uuid),vs = VALUES (vs),vn = VALUES (vn),update_time = VALUES (update_time), nex = nex+1"
+        sql = "INSERT INTO `catalogs` (`id`,`catalog_id`,`title`, `src`,`book_id`,`book_title`,`cnt`,`uuid`,`vs`,`vn`,`update_time`)  VALUES (%s,%s, %s, %s,%s, %s, %s,%s,%s, %s, %s) ON DUPLICATE KEY UPDATE id = VALUES (id),catalog_id = VALUES (catalog_id),title = VALUES (title), src = VALUES (src),book_id = VALUES (book_id),book_title = VALUES (book_title),cnt = VALUES (cnt),uuid = VALUES (uuid),vs = VALUES (vs),vn = VALUES (vn),update_time = VALUES (update_time), nex = nex+1"
         return self.batchAdd(sql=sql, data_info=data_info)
 
     def save_book_catalog_txt_to_mysql(self, data_info):
-        sql = "INSERT INTO `txt` (`id`, `catalog_id`, `catalog_title`,`article`)  VALUES (%s,%s, %s, %s) ON DUPLICATE KEY UPDATE id = VALUES (id), catalog_id = VALUES (catalog_id), catalog_title = VALUES (catalog_title),article = VALUES (article), nex = nex+1"
+        sql = "INSERT INTO `txt` (`id`, `catalog_id`, `catalog_title`,`book_id`,`book_title`,`article`)  VALUES (%s,%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE id = VALUES (id), catalog_id = VALUES (catalog_id), catalog_title = VALUES (catalog_title), book_id = VALUES (book_id), book_title = VALUES (book_title),article = VALUES (article), nex = nex+1"
         return self.batchAdd(sql=sql, data_info=data_info)
 
 
@@ -153,23 +157,28 @@ class Novel(object):
             book[key] = html.xpath(value)
         return book
 
-    def get_book_id(self, book_Id, platform, platform_src):
-        id_tup = self._mysql_.get_book_id_tup(book_Id, platform, platform_src)
+    def get_book_id(self, book_id, platform, platform_src):
+        id_tup = self._mysql_.get_book_id_tup(book_id, platform, platform_src)
         if len(id_tup) > 0:
             return id_tup[0][0]
         else:
             return 0
 
-    def get_book_catalog_id(self, book_Id, catalog_id):
-        id_tup = self._mysql_.get_book_catalog_id_tup(book_Id, catalog_id)
+    def get_book_catalog_id(self, book_id, catalog_id):
+        id_tup = self._mysql_.get_book_catalog_id_tup(book_id, catalog_id)
         if len(id_tup) > 0:
             return id_tup[0][0]
         else:
             return 0
 
-    def get_book_catalog_data_list(self, book_Id):
-        list_tup = self._mysql_.get_book_catalog_data_list_tup(book_Id)
+    def get_book_catalog_data_list(self, book_id):
+        list_tup = self._mysql_.get_book_catalog_data_list_tup(book_id)
         # print(list_tup)
+        return list_tup
+
+    def get_book_catalog_txt_data_list(self, book_id):
+        list_tup = self._mysql_.get_book_catalog_txt_data_list_tup(book_id)
+        print(list_tup)
         return list_tup
 
     def get_book_catalog_txt_id(self, catalog_id):
@@ -190,26 +199,38 @@ class Spider(Novel):
 
     # 2、访问小说列表页 拿到小说列表
     def get_book_list(self, url):
-        try:
-            print("├  请求书籍列表：{0}".format(url))
-            response = requests.get(url=url)
-            xml = etree.HTML(response.text)  # 整理成xml文档对象
-            return xml.xpath('//ul[@class="all-img-list cf"]//li')
-        except:
-            print('├  [ error info ] 请求书籍列表：{0}".format(url)')
-            return []
+        html_list = []
+        flip_flag = True
+        i = 1
+        while flip_flag:
+            print(
+                '├  请求书籍列表：【 %s 】  请求 ' % (str(url)))
+            time.sleep(1)
+            try:
+                response = requests.get(url=url)
+                xml = etree.HTML(response.text)  # 整理成xml文档对象
+                html_list = xml.xpath('//ul[@class="all-img-list cf"]//li')
+                flip_flag = False
+            except:
+                print("├  请求书籍列表：【 %s 】  请求  ==》 失败 ==>  10 秒后再试" % (str(url)))
+                i += 1
+                time.sleep(10)
+                if i > 30:
+                    self._r_.setListData(name='get_book_list', lists=[str(url)])
+                    flip_flag = False
 
-    # 3、小说列表数据处理 格式化 book_Id、src、title、img_url、state、author、chan_name、sub_name、gender、synoptic、platform、platform_src、
+        return html_list
+
+    # 3、小说列表数据处理 格式化 book_id、src、title、img_url、state、author、chan_name、sub_name、gender、synoptic、platform、platform_src、
     def format_book_list_data(self, book_list_html, xpath):
         book_info_list = []
-
         for html in book_list_html:
             # print(html)
             book = self.analysis_html(html=html, xpath=xpath)
-            for book_Id, src, title, img_url, state, author, chan_name, sub_name, synoptic in zip(*book.values()):
-                # book_Id、src、title、img_url、state、author、chan_name、sub_name、gender、synoptic、platform、platform_src、
+            for book_id, src, title, img_url, state, author, chan_name, sub_name, synoptic in zip(*book.values()):
+                # book_id、src、title、img_url、state、author、chan_name、sub_name、gender、synoptic、platform、platform_src、
                 book_info_list.append({
-                    'book_Id': book_Id,
+                    'book_id': book_id,
                     'src': src,
                     'title': title,
                     'img_url': img_url,
@@ -228,13 +249,13 @@ class Spider(Novel):
         data_info = []
         for item in book_info_list:
             if item['id'] > 0 and isRepeat == False:
-                print('├  书籍 【 %s 】| id 【 %s 】 | book_Id 【 %s 】 已抓取 ==> 跳过' % (
-                    item['title'], item['id'], item['book_Id']))
+                print('├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 已抓取 ==> 跳过' % (
+                    item['title'], item['id'], item['book_id']))
                 continue
 
             data_info.append((
                 item['id'],
-                item['book_Id'],
+                item['book_id'],
                 item['src'],
                 item['title'],
                 item['img_url'],
@@ -247,39 +268,37 @@ class Spider(Novel):
                 item['synoptic'],
                 item['platform'],
                 item['platform_src']))
-            print('├  书籍 【 %s 】| id 【 %s 】 | book_Id 【 %s 】 存储' % (
-                item['title'], item['id'], item['book_Id']))
+            print('├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 存储' % (
+                item['title'], item['id'], item['book_id']))
 
         save_book_res = self._mysql_.save_book_info_to_mysql(data_info=data_info)
         if save_book_res == True:
-            print('├  书籍信息 保存 ==> 成功( %s )' % len(data_info))
+            print('├  书籍信息 书籍存储 ==> 成功( %s )' % len(data_info))
             return
 
-        print('├  书籍信息 保存 ==> 失败( %s )' % len(data_info))
+        print('├  书籍信息 书籍存储 ==> 失败( %s )' % len(data_info))
         self._r_.setListData(name='book_info_list', lists=[str(data_info)])
 
-    # 4、通过 小说 book_Id 拿到 小说章节列表
+    # 4、通过 小说 book_id 拿到 小说章节列表
     def request_api_data(self, request_url):
         category_data = {}
         flip_flag = True
         i = 1
         while flip_flag:
             print("├  API ：【 %s 】 请求" % (request_url))
-            response = requests.get(url=request_url)
-            response.encoding = "utr-8"
-            category = json.loads(response.text)
+
             try:
+                response = requests.get(url=request_url)
+                response.encoding = "utr-8"
+                category = json.loads(response.text)
                 category_data = category['data']
                 flip_flag = False
             except:
-                print("├  API ：【 %s 】 请求 ==》 失败 ==> %s  10 秒后再试" % (request_url, str(category)))
+                print("├  API ：【 %s 】 请求 ==》 失败 ==>  10 秒后再试" % (request_url))
                 i += 1
                 time.sleep(10)
                 if i > 30:
-                    self._r_.setListData(name='get_api_data', lists=[str({
-                        'request_url': request_url,
-                        'category': category
-                    })])
+                    self._r_.setListData(name='request_api_data', lists=[str(requests_url)])
                     flip_flag = False
 
         return category_data
@@ -289,7 +308,7 @@ class Spider(Novel):
         for item in book_list:
             params = {
                 "_csrfToken": '',
-                "bookId": item['book_Id']
+                "bookId": item['book_id']
             }
             request_url = platform_src + "/ajax/book/category?/job_detail/?" + urlencode(params)
             # print(request_url)
@@ -300,7 +319,7 @@ class Spider(Novel):
             book_info_list.append(item)
         return book_info_list
 
-    # 5、小说章节列表 格式化  catalog_id、title、src、book_Id、book_title、cnt、uuid、vs、vn、nex、update_time
+    # 5、小说章节列表 格式化  catalog_id、title、src、book_id、book_title、cnt、uuid、vs、vn、nex、update_time
     def format_book_catalog_list_data(self, catalog_list):
         info_list = []
         for i in catalog_list:
@@ -320,161 +339,214 @@ class Spider(Novel):
     def format_book_catalog_data(self, book_info):
         data_info = []
         for catalog_info in book_info['catalog_list']:
-            catalog_id = self.get_book_catalog_id(book_Id=book_info['id'], catalog_id=catalog_info['catalog_id'])
-            # print(catalog_id)
-            if catalog_id > 0 and isRepeat == False:
+            if catalog_info['id'] > 0 and isRepeat == False:
                 print(
-                    '├  书籍 【 %s 】| id 【 %s 】 | book_Id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (
-                        book_info['title'], book_info['id'], book_info['book_Id'], catalog_info['title'], catalog_id,
+                    '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】  已抓取 ==> 跳过' % (
+                        book_info['title'], book_info['id'], book_info['book_id'], catalog_info['title'], catalog_info['id'],
                         catalog_info['catalog_id']))
                 continue
 
             data_info.append((
-                book_info['id'], catalog_info['catalog_id'], catalog_info['title'], catalog_info['src'],
-                book_info['book_Id'], book_info['title'], catalog_info['cnt'], catalog_info['uuid'],
+                catalog_info['id'], catalog_info['catalog_id'], catalog_info['title'], catalog_info['src'],
+                book_info['id'], book_info['title'], catalog_info['cnt'], catalog_info['uuid'],
                 catalog_info['vs'], catalog_info['vn'], catalog_info['update_time']
             ))
             print(
-                '├  书籍 【 %s 】| id 【 %s 】 | book_Id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】  存储' % (
-                    book_info['title'], book_info['id'], book_info['book_Id'], catalog_info['title'], catalog_id,
+                '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】  存储' % (
+                    book_info['title'], book_info['id'], book_info['book_id'], catalog_info['title'], catalog_info['id'],
                     catalog_info['catalog_id']))
         # print(data_info)
         return data_info
 
     def save_book_catalog(self, book_info_list):
         for item in book_info_list:
-            print(item['id'])
+            # print(item['id'])
             catalog_info_list = self.format_book_catalog_data(book_info=item)
-            # save_catalog_res = self._mysql_.save_book_catalog_to_mysql(data_info=catalog_info_list)
-            # if save_catalog_res == False:
-            #     print('├  书籍 【 %s 】| id 【 %s 】 | book_Id 【 %s 】 目录存储  ==>  失败' % (
-            #         item['title'], item['id'], item['book_Id']))
-            #     self._r_.setListData(name='book_info_list', lists=[str(catalog_info_list)])
-            #     continue
-            # print(
-            #     '├  书籍 【 %s 】| id 【 %s 】 | book_Id 【 %s 】 目录存储  ==>  成功' % (item['title'], item['id'], item['book_Id']))
+            print(catalog_info_list)
+            save_catalog_res = self._mysql_.save_book_catalog_to_mysql(data_info=catalog_info_list)
+            # print(save_catalog_res)
+            if save_catalog_res == False:
+                # print('├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 | chapter_total_cnt 【 %s 】 目录存储  ==>  失败( %s )' % (
+                #     item['title'], item['id'], item['book_id'], item['chapter_total_cnt'], len(catalog_info_list)))
+                # self._r_.setListData(name='book_info_list', lists=[str(catalog_info_list)])
+                # continue
+                print('├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 | chapter_total_cnt 【 %s 】 目录存储  ==>  失败( %s )' % (
+                    item['title'], item['id'], item['book_id'], item['chapter_total_cnt'], len(catalog_info_list)))
+                for catalog_info in catalog_info_list:
+                    save_res = self._mysql_.save_book_catalog_to_mysql(data_info=[catalog_info])
+                    if save_res == False:
+                        print(
+                            '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 | chapter_total_cnt 【 %s 】|  catalog_info 【 %s 】  目录存储  ==>  失败' % (
+                                item['title'], item['id'], item['book_id'], item['chapter_total_cnt'],
+                                str(catalog_info)))
+                        self._r_.setListData(name='save_book_catalog', lists=[str(catalog_info)])
+                        continue
+                    print(
+                        '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 | chapter_total_cnt 【 %s 】|  catalog_info 【 %s 】  目录存储  ==>  成功' % (
+                            item['title'], item['id'], item['book_id'], item['chapter_total_cnt'],
+                            str(catalog_info)))
+                return
+
+            print(
+                '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 | chapter_total_cnt 【 %s 】 目录存储  ==>  成功( %s )' % (
+                    item['title'], item['id'], item['book_id'], item['chapter_total_cnt'], len(catalog_info_list)))
 
     def update_book_id_and_catalog(self, info_list):
         book_info_list = []
-        # print(type(info_list))
         for item in info_list:
             catalog_list = []
-            # print(type(item))
-            # print(type(item['catalog_list']))
-            # print(item['catalog_list'])
-            # print(item)
-            # print('id==>' + str(item['id']))
-            item['id'] = self.get_book_id(book_Id=item['book_Id'], platform=item['platform'],
+            item['id'] = self.get_book_id(book_id=item['book_id'], platform=item['platform'],
                                           platform_src=item['platform_src'])
-            catalog_id_list = self.get_book_catalog_data_list(book_Id=item['id'])
+            catalog_id_list = self.get_book_catalog_data_list(book_id=item['id'])
+            txt_id_list = self.get_book_catalog_txt_data_list(book_id=item['id'])
+            # print(txt_id_list)
+            # print(item['id'])
             # print(catalog_id_list)
-            # print(len(catalog_id_list))
             for catalog_info in item['catalog_list']:
-                catalog_info['id'] = self.get_book_catalog_mysql_id(catalog_id_list, catalog_info['catalog_id'])
-                # print(type(catalog_info))
-                # print(catalog_info['catalog_id'])
+                catalog_info['id'] = self.from_list_get_id(catalog_id_list, catalog_info['catalog_id'])
+                catalog_info['txt_id'] = self.from_list_get_id(txt_id_list, catalog_info['id'])
+                # print(catalog_info['id'])
+                # print(catalog_info['txt_id'])
                 catalog_list.append(catalog_info)
 
-            # print(item)
             item['catalog_list'] = catalog_list
             book_info_list.append(item)
-        print('update_book_id_and_catalog ==> 成功')
+        print('├  update_book_id_and_catalog ==> 成功')
         return book_info_list
 
-    def get_book_catalog_mysql_id(self, catalog_id_list, catalog_id):
-        id = 0
-        if (len(catalog_id_list)) <= 0:
-            return id
-        for item in catalog_id_list:
-            if catalog_id in item:
+    def from_list_get_id(self, id_list, id):
+        nid = 0
+        if (len(id_list)) <= 0:
+            return nid
+        for item in id_list:
+            if id in item:
                 # print(item, catalog_id)
-                id = item[0]
-        return id
+                nid = item[0]
+        return nid
 
     # 6、通过 小说章节 src 拿到 小说文章内容
-    def get_book_txt(self):
-        pass
+    def get_book_txt(self, catalog_id, catalog_title, book_id, book_title, catalog_src):
+        article = ''
+        flip_flag = True
+        i = 1
+        while flip_flag:
+            print(
+                '├  书籍 【 %s 】| id 【 %s 】 | 章节 【 %s 】| id 【 %s 】 | catalog_src 【 %s 】  请求 ' % (
+                    book_title, book_id, catalog_title, catalog_id, catalog_src))
+            try:
+                response = requests.get(catalog_src)
+                xml = etree.HTML(response.text)
+                article = u"\n".join(xml.xpath('//div[@class="read-content j_readContent"]//p/text()'))
+                article = article.replace("'", "’")
+                flip_flag = False
+            except:
+                print("├  书籍 【 %s 】| id 【 %s 】 | 章节 【 %s 】| id 【 %s 】 | catalog_src 【 %s 】  请求  ==》 失败 ==>  10 秒后再试" % (
+                    book_title, book_id, catalog_title, catalog_id, catalog_src))
+                i += 1
+                time.sleep(10)
+                if i > 30:
+                    self._r_.setListData(name='get_book_txt', lists=[str(catalog_src)])
+                    flip_flag = False
+
+        return article
 
     def get_book_txt_list(self, book_info_list):
+        data_info = []
         for item in book_info_list:
-            # print(len(data_info))
-            # return self._mysql_.save_book_catalog_to_mysql(data_info=data_info)
-            #     print(item)
-            id = self.get_book_id(book_Id=item['book_Id'], platform=item['platform'],
-                                  platform_src=item['platform_src'])
-            # print(id)
-            item['id'] = id
-            if id <= 0:
-                book_data_info = []
-                book_data_info.append((
-                    item['id'],
-                    item['book_Id'],
-                    item['src'],
-                    item['title'],
-                    item['img_url'],
-                    item['state'],
-                    item['author'],
-                    item['chan_name'],
-                    item['sub_name'],
-                    item['chapter_total_cnt'],
-                    item['gender'],
-                    item['synoptic'],
-                    item['platform'],
-                    item['platform_src']))
+            # print(item['id'])
+            # print(item['title'])
+            for catalog_info in item['catalog_list']:
+                # print(catalog_info['id'])
+                # print(catalog_info['title'])
 
-                book_save_res = self._mysql_.save_book_info_to_mysql(data_info=book_data_info)
-                if book_save_res == False:
-                    # 存储书籍，失败跳过循环
-                    print('├  书籍 【 %s 】| id 【 %s 】 | book_Id 【 %s 】 存储 ==> 失败' % (
-                        item['title'], item['id'], item['book_Id']))
-                    self._r_.setListData('save_book_catalog', [str(item)])
+                # print(catalog_info['id'])
+                # print(catalog_info['txt_id'])
+                if catalog_info['txt_id'] > 0 and isRepeat == False:
+                    print(
+                        '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】 | vs 【 %s 】 | txt_id 【 %s 】  已抓取 ==> 跳过' % (
+                            item['title'], item['id'], item['book_id'], catalog_info['title'],
+                            catalog_info['id'],
+                            catalog_info['catalog_id'], catalog_info['vs'], catalog_info['txt_id']))
                     continue
-                item['id'] = self.get_book_id(book_Id=item['book_Id'], platform=item['platform'],
-                                              platform_src=item['platform_src'])
-                print('├  书籍 【 %s 】| id 【 %s 】 | book_Id 【 %s 】 存储  ==>  成功' % (
-                    item['title'], item['id'], item['book_Id']))
-            print(item['id'])
-            print(item['title'])
 
-        pass
+                if catalog_info['vs'] == 1 and isVs == False:
+                    print(
+                        '├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】| 章节 【 %s 】| id 【 %s 】 | catalog_id 【 %s 】 | vs 【 %s 】 | txt_id 【 %s 】  会员章节 ==> 跳过' % (
+                            item['title'], item['id'], item['book_id'], catalog_info['title'],
+                            catalog_info['id'],
+                            catalog_info['catalog_id'], catalog_info['vs'], catalog_info['txt_id']))
+                    continue
+
+                catalog_src = "https://read.qidian.com/chapter/" + catalog_info['src']
+                if catalog_info['vs'] == 1:
+                    catalog_src = "https://read.qidian.com/chapter/" + str(item['book_id']) + '/' + str(
+                        catalog_info['catalog_id'])
+                catalog_info['article'] = self.get_book_txt(catalog_id=catalog_info['id'],
+                                                            catalog_title=catalog_info['title'], book_id=item['id'],
+                                                            book_title=item['title'], catalog_src=catalog_src)
+                # print(catalog_info['article'])
+                data_info.append((
+                    catalog_info['txt_id'],
+                    catalog_info['id'],
+                    catalog_info['title'],
+                    item['id'],
+                    item['title'],
+                    catalog_info['article']
+                ))
+        return data_info
 
     # 7、小说文章内容列表数据 格式化 catalog_id、catalog_title、article
-    def format_book_txt_list_data(self):
-        pass
+    def save_book_catalog_txt(self, book_catalog_txt_list):
+        res = self._mysql_.save_book_catalog_txt_to_mysql(data_info=book_catalog_txt_list)
+        if res == False:
+            print('├  内容 目录存储  ==>  失败( %s )' % (len(book_catalog_txt_list)))
+            for item in book_catalog_txt_list:
+                save_res = self._mysql_.save_book_catalog_txt_to_mysql(data_info=[item])
+                if save_res == False:
+                    print('├  内容 %s 存储  ==>  失败' % (str(item)))
+                    self._r_.setListData(name='save_book_catalog_txt', lists=[str(item)])
+                    continue
+                print('\t├  内容 %s 存储  ==>  成功' % (str(item)))
+            return
+        print('├  内容 存储  ==>  成功( %s )' % (len(book_catalog_txt_list)))
 
 
 class SpiderModel(Spider):
     # 8、处理模式 1 一条龙（创建小说列表页链接->小说->存储小说->章节->存储章节->内容->存储内容->翻页->小说）
     def run_a_dragon(self, url, xpath):
+        start = time.time()
         # 1. 请求页面 获取数据
-        book_list_html = self.get_book_list(url=url)
+        html_list = self.get_book_list(url=url)
         # print(book_list_html)
-        if len(book_list_html) <= 0:
+        if len(html_list) <= 0:
             time.sleep(10)
             print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
             self._r_.setListData(name='book_page_list', lists=[str(url)])
             return
         # 2. 格式化书籍信息
-        book_list = self.format_book_list_data(book_list_html=book_list_html, xpath=xpath)
+        book_list = self.format_book_list_data(book_list_html=[html_list[0]], xpath=xpath)
+        book_info_list = self.get_book_catalog_list(book_list=book_list)
         # print(book_list)
         # 4. 请求 目录API
-        book_info_list = self.get_book_catalog_list(book_list=book_list)
-
-        book_info_list = self.update_book_id_and_catalog(info_list=book_info_list)
+        book_info_list_1 = self.update_book_id_and_catalog(info_list=book_info_list)
         # print(book_info_list[0])
         # # 3. 书籍信息 存入mysql book 表
         # print(book_info_list)
-        self.save_book(book_info_list=book_info_list)
+        self.save_book(book_info_list=book_info_list_1)
         # print(book_info_list)
-        book_info_list = self.update_book_id_and_catalog(info_list=book_info_list)
+        book_info_list_2 = self.update_book_id_and_catalog(info_list=book_info_list_1)
         # # 6. 目录信息 存入mysql catalogs表 ，拿到id,catalog_id,src
-        self.save_book_catalog(book_info_list=book_info_list)
+        self.save_book_catalog(book_info_list=book_info_list_2)
         # # 7. 抓取文章内容
-        # self.get_book_txt_list(book_info_list=book_info_list)
+        book_info_list_3 = self.update_book_id_and_catalog(info_list=book_info_list_2)
         # 8. 格式化文章内容
+        book_catalog_txt_list = self.get_book_txt_list(book_info_list=book_info_list_3)
         # 9. 文章内容存入 mysql txt表
-
-        pass
+        self.save_book_catalog_txt(book_catalog_txt_list=book_catalog_txt_list)
+        end = time.time()
+        print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
+        print('├  抓取频率过快 180 秒后继续')
+        time.sleep(180)
 
     # 8、处理模式 2.1 翻页抓取小说列表，保存目录到redis（创建小说列表页链接->小说->存储小说->章节->存储章节->章节列表存储到redis->翻页->小说）
     def run_save_catalog_list_to_redis(self):
@@ -520,7 +592,7 @@ if __name__ == '__main__':
             'db': 8
         },
         'xpath': {
-            'book_Id_list': './div[@class="book-mid-info"]/h4/a/@data-bid',
+            'book_id_list': './div[@class="book-mid-info"]/h4/a/@data-bid',
             'src_list': './div[@class="book-mid-info"]/h4/a/@href',
             'title_list': './div[@class="book-mid-info"]/h4/a/text()',
             'img_url_list': './div[@class="book-img-box"]/a/img/@src',
@@ -537,8 +609,8 @@ if __name__ == '__main__':
         ],
         'spiderType': 1
     }
-    isRepeat = True
-    isVs = True
+    isRepeat = False
+    isVs = False
     run = Run()
 
     # dev  online
