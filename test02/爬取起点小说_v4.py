@@ -681,11 +681,21 @@ if __name__ == '__main__':
         'requests_url': [
             'https://www.qidian.com/all',
             'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=1000'
+        ],
+        'params':[
+            {
+                'src': 'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page={0}',
+                'maxPageSize': '58384'
+            },
+            # {
+            #     'src': 'https://www.qidian.com/mm/all?orderId=&style=1&pageSize=20&siteid=0&pubflag=0&hiddenField=0&page={0}',
+            #     'maxPageSize': '24338'
+            # }
         ]
     }
     # online dev
-    environment = 'dev'
-    spiderType = 1
+    environment = 'online'
+    spiderType = 3
     isRepeat = False
     isVs = False
     isDebugger = False
@@ -702,16 +712,7 @@ if __name__ == '__main__':
     run = Run()
     if spiderType == 0:
         # 初始化书籍，列表链接池  nan : 58384  nv :0     all :  82722
-        params = [
-            {
-                'src': 'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page={0}',
-                'maxPageSize': '58384'
-            },
-            # {
-            #     'src': 'https://www.qidian.com/mm/all?orderId=&style=1&pageSize=20&siteid=0&pubflag=0&hiddenField=0&page={0}',
-            #     'maxPageSize': '24338'
-            # }
-        ]
+        params = config['params']
         run.creat_book_page_url_list_to_redis(params=params)
     elif spiderType == 1:
         # 一条龙服务
@@ -720,7 +721,7 @@ if __name__ == '__main__':
     elif spiderType == 2:
         # 获取并存储书籍和目录信息，存储章节目录 到redis
         print('├  获取并存储书籍和目录信息，存储章节目录 到redis')
-        run.save_catalog_list_to_redis(xpath=xpath, book_list_html_xpath=book_list_html_xpath, num=1, maxNum=43200)
+        run.save_catalog_list_to_redis(xpath=xpath, book_list_html_xpath=book_list_html_xpath, num=10, maxNum=43200)
     elif spiderType == 3:
         # 从 redis 中获取 目录信息  ，获取章节内容
         print('├  从 redis 中获取 目录信息  ，获取章节内容')
