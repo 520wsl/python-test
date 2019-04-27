@@ -296,6 +296,9 @@ class Spider(Novel):
                 response = requests.get(url=request_url)
                 response.encoding = "utr-8"
                 category = json.loads(response.text)
+                if category['code'] == 3001:
+                    flip_flag = False
+                    return {}
                 category_data = category['data']
                 flip_flag = False
             except:
@@ -337,6 +340,8 @@ class Spider(Novel):
             }
             request_url = platform_src + "/ajax/book/category?/job_detail/?" + urlencode(params)
             catalog_info_list = self.request_api_data(request_url=request_url)
+            if len(catalog_info_list) <= 0:
+                continue
             item['catalog_list'] = self.format_book_catalog_list_data(catalog_list=catalog_info_list['vs'],
                                                                       book_id=item['book_id'])
             item['chapter_total_cnt'] = catalog_info_list['chapterTotalCnt']
@@ -396,6 +401,7 @@ class Spider(Novel):
                 self._r_.setListData(name='save_book_catalog', lists=[str(catalog_info)])
 
     def update_book_id_and_catalog(self, info_list):
+        start = time.time()
         book_info_list = []
         for item in info_list:
             catalog_list = []
@@ -412,6 +418,8 @@ class Spider(Novel):
             book_info_list.append(item)
         if isDebugger:
             print('├  update_book_id_and_catalog ==> 成功')
+        end = time.time()
+        print('├  update_book_id_and_catalog  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
         return book_info_list
 
     # 6、通过 小说章节 src 拿到 小说文章内容
@@ -425,9 +433,8 @@ class Spider(Novel):
                     book_title, book_id, catalog_title, catalog_id, catalog_src))
             try:
                 response = requests.get(catalog_src)
-                xml = etree.HTML(response.text)
+                xml = etree.HTML(response.content)
                 article = u"\n".join(xml.xpath('//div[@class="read-content j_readContent"]//p/text()'))
-                article = article.replace("'", "’")
                 flip_flag = False
             except:
                 print("├  书籍 【 %s 】| id 【 %s 】 | 章节 【 %s 】| id 【 %s 】 | catalog_src 【 %s 】  请求  ==》 失败 ==>  10 秒后再试" % (
@@ -682,7 +689,7 @@ if __name__ == '__main__':
             'https://www.qidian.com/all',
             'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=1000'
         ],
-        'params':[
+        'params': [
             {
                 'src': 'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page={0}',
                 'maxPageSize': '58384'
@@ -695,10 +702,10 @@ if __name__ == '__main__':
     }
     # online dev
     environment = 'online'
-    spiderType = 3
+    spiderType = 1
     isRepeat = False
     isVs = False
-    isDebugger = False
+    isDebugger = True
 
     if environment == 'online':
         config["mysql"]["database"] = 'novel_online'
@@ -721,8 +728,8 @@ if __name__ == '__main__':
     elif spiderType == 2:
         # 获取并存储书籍和目录信息，存储章节目录 到redis
         print('├  获取并存储书籍和目录信息，存储章节目录 到redis')
-        run.save_catalog_list_to_redis(xpath=xpath, book_list_html_xpath=book_list_html_xpath, num=10, maxNum=43200)
+        run.save_catalog_list_to_redis(xpath=xpath, book_list_html_xpath=book_list_html_xpath, num=1, maxNum=43200)
     elif spiderType == 3:
         # 从 redis 中获取 目录信息  ，获取章节内容
         print('├  从 redis 中获取 目录信息  ，获取章节内容')
-        run.from_redis_get_catalog_save_txt_to_redis(num=3000, maxNum=43200)
+        run.from_redis_get_catalog_save_txt_to_redis(num=1, maxNum=43200)
