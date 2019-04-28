@@ -19,6 +19,7 @@ __mtime__ = '2019/4/24'
                   ┗┻┛  ┗┻┛
 """
 import json
+import math
 import time
 from urllib.parse import urlencode
 
@@ -34,6 +35,32 @@ class Data(object):
         if isinstance(s, bytes):
             return s.decode(encoding)
         return s
+
+    def groupingData(self, list, pageSize, fixed=False):
+        listSize = len(list)
+        if fixed:
+            listGroupSize = pageSize
+        else:
+            listGroupSize = math.ceil(float(listSize) / pageSize)
+
+        nloops = range(listGroupSize)
+        listTaskList = []
+        listTaskSize = math.ceil(float(listSize) / listGroupSize)
+        for i in nloops:
+            try:
+                print("第 %s 组 ：[ %s ] \n\t" % (i + 1, len(list[i * listTaskSize:(i + 1) * listTaskSize])))
+                listTaskList.append(list[i * listTaskSize:(i + 1) * listTaskSize])
+            except:
+                print("第 %s 组 ：[ %s ] \n\t" % (i + 1, len(list[i * listTaskSize:])))
+                listTaskList.append(list[i * listTaskSize:])
+        res = {
+            'listSize': listSize,
+            'listGroupSize': listGroupSize,
+            'listTaskSize': listTaskSize,
+            'listTaskList': listTaskList
+        }
+        print('groupingData : %s' % res)
+        return res
 
 
 class Redis(object):
@@ -83,6 +110,15 @@ class BaseMySql(object):
         db = self.openMySqlConfig()
         # 使用cursor()方法获取操作游标
         cursor = db.cursor()
+
+        # # 执行sql语句
+        # cursor.executemany(sql, data_info)
+        #
+        # # 提交到数据库执行
+        # db.commit()
+        # db.close()
+        # return True
+
         try:
             # 执行sql语句
             cursor.executemany(sql, data_info)
@@ -140,6 +176,11 @@ class MySql(BaseMySql):
     # 保存书籍信息
     def save_book_info_to_mysql(self, data_info):
         sql = "INSERT INTO `book` (`id`, `book_id`, `src`,`title`,`img_url`,`state`,`author`,`chan_name`,`sub_name`,`chapter_total_cnt`,`gender`,`synoptic`,`platform`,`platform_src`)  VALUES (%s,%s, %s, %s,%s, %s, %s,%s,%s, %s, %s,%s, %s, %s) ON DUPLICATE KEY UPDATE id = VALUES (id), book_id = VALUES (book_id), src = VALUES (src),title = VALUES (title),img_url = VALUES (img_url),state = VALUES (state),author = VALUES (author),chan_name = VALUES (chan_name),sub_name = VALUES (sub_name),chapter_total_cnt = VALUES (chapter_total_cnt),gender = VALUES (gender),synoptic = VALUES (synoptic),platform = VALUES (platform),platform_src = VALUES (platform_src), nex = nex+1"
+        return self.batchAdd(sql=sql, data_info=data_info)
+
+    # 保存免费书籍信息
+    def save_free_book_info_to_mysql(self, data_info):
+        sql = "INSERT INTO `book` (`id`, `book_id`, `src`,`title`,`img_url`,`state`,`author`,`chan_name`,`chapter_total_cnt`,`gender`,`synoptic`,`platform`,`platform_src`)  VALUES (%s, %s, %s,%s, %s, %s,%s,%s, %s, %s,%s, %s, %s) ON DUPLICATE KEY UPDATE id = VALUES (id), book_id = VALUES (book_id), src = VALUES (src),title = VALUES (title),img_url = VALUES (img_url),state = VALUES (state),author = VALUES (author),chan_name = VALUES (chan_name),chapter_total_cnt = VALUES (chapter_total_cnt),gender = VALUES (gender),synoptic = VALUES (synoptic),platform = VALUES (platform),platform_src = VALUES (platform_src), nex = nex+1"
         return self.batchAdd(sql=sql, data_info=data_info)
 
     # 保存 章节 信息
@@ -231,6 +272,7 @@ class Spider(Novel):
         for html in book_list_html:
             # print(html)
             book = self.analysis_html(html=html, xpath=xpath)
+            # print(book)
             for book_id, src, title, img_url, state, author, chan_name, sub_name, synoptic in zip(*book.values()):
                 # book_id、src、title、img_url、state、author、chan_name、sub_name、gender、synoptic、platform、platform_src、
                 book_info_list.append({
@@ -242,6 +284,28 @@ class Spider(Novel):
                     'author': author,
                     'chan_name': chan_name,
                     'sub_name': sub_name,
+                    'gender': gender,
+                    'synoptic': synoptic,
+                    'platform': platform,
+                    'platform_src': platform_src
+                })
+                print(book_info_list)
+        return book_info_list
+
+    def format_free_book_list_data(self, book_list_html, xpath):
+        book_info_list = []
+        for html in book_list_html:
+            book = self.analysis_html(html=html, xpath=xpath)
+            for book_id, src, title, img_url, state, author, chan_name, synoptic in zip(*book.values()):
+                # book_id、src、title、img_url、state、author、chan_name、sub_name、gender、synoptic、platform、platform_src、
+                book_info_list.append({
+                    'book_id': book_id,
+                    'src': src,
+                    'title': title,
+                    'img_url': img_url,
+                    'state': state,
+                    'author': author,
+                    'chan_name': chan_name,
                     'gender': gender,
                     'synoptic': synoptic,
                     'platform': platform,
@@ -284,6 +348,40 @@ class Spider(Novel):
 
         print('├  书籍信息 书籍存储 ==> 失败( %s )' % len(data_info))
         self._r_.setListData(name='book_info_list', lists=[str(data_info)])
+
+    def save_free_book(self, book_info_list):
+        data_info = []
+        for item in book_info_list:
+            if item['id'] > 0 and isRepeat == False:
+                if isDebugger:
+                    print('├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 已抓取 ==> 跳过' % (
+                        item['title'], item['id'], item['book_id']))
+                continue
+
+            data_info.append((
+                item['id'],
+                item['book_id'],
+                item['src'],
+                item['title'],
+                item['img_url'],
+                item['state'],
+                item['author'],
+                item['chan_name'],
+                item['chapter_total_cnt'],
+                item['gender'],
+                item['synoptic'],
+                item['platform'],
+                item['platform_src']))
+            if isDebugger:
+                print('├  书籍 【 %s 】| id 【 %s 】 | book_id 【 %s 】 存储' % (
+                    item['title'], item['id'], item['book_id']))
+        save_book_res = self._mysql_.save_free_book_info_to_mysql(data_info=data_info)
+        if save_book_res == True:
+            print('├  书籍信息 书籍存储 ==> 成功( %s )' % len(data_info))
+            return
+
+        print('├  书籍信息 书籍存储 ==> 失败( %s )' % len(data_info))
+        self._r_.setListData(name='free_book_info_list', lists=[str(data_info)])
 
     # 4、通过 小说 book_id 拿到 小说章节列表
     def request_api_data(self, request_url):
@@ -416,8 +514,6 @@ class Spider(Novel):
 
             item['catalog_list'] = catalog_list
             book_info_list.append(item)
-        if isDebugger:
-            print('├  update_book_id_and_catalog ==> 成功')
         end = time.time()
         print('├  update_book_id_and_catalog  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
         return book_info_list
@@ -545,7 +641,9 @@ class SpiderModel(Spider):
                                                                         book_list_html_xpath=book_list_html_xpath)
         book_catalog_txt_list = self.get_book_txt_list(book_txt_list_data=book_catalog_info_list)
         # 9. 文章内容存入 mysql txt表
-        self.save_book_catalog_txt(book_catalog_txt_list=book_catalog_txt_list)
+        groupData = self._data_.groupingData(list=book_catalog_txt_list, pageSize=300)
+        for item in groupData['listTaskList']:
+            self.save_book_catalog_txt(book_catalog_txt_list=item)
         end = time.time()
         print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
 
@@ -567,9 +665,39 @@ class SpiderModel(Spider):
         for info in catalog_info_list:
             book_catalog_info_list.append(eval(info))
         book_catalog_txt_list = self.get_book_txt_list(book_txt_list_data=book_catalog_info_list)
-        self.save_book_catalog_txt(book_catalog_txt_list=book_catalog_txt_list)
+        groupData = self._data_.groupingData(list=book_catalog_txt_list, pageSize=300)
+        for item in groupData['listTaskList']:
+            self.save_book_catalog_txt(book_catalog_txt_list=item)
         end = time.time()
         print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
+
+    def run_free_book(self, freeBookUrl, xpath, free_book_list_html_xpath):
+        html_list = self.get_book_list(url=freeBookUrl, book_list_html_xpath=free_book_list_html_xpath)
+        if len(html_list) <= 0:
+            time.sleep(10)
+            print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
+            self._r_.setListData(name='free_book_page_list', lists=[str(freeBookUrl)])
+            return False
+            # 2. 格式化书籍信息
+        book_list = self.format_free_book_list_data(book_list_html=html_list, xpath=xpath)
+        book_info_list = self.get_book_catalog_list(book_list=book_list)
+        # 4. 请求 目录API
+        book_info_list_1 = self.update_book_id_and_catalog(info_list=book_info_list)
+        # # 3. 书籍信息 存入mysql book 表
+        self.save_free_book(book_info_list=book_info_list_1)
+        book_info_list_2 = self.update_book_id_and_catalog(info_list=book_info_list_1)
+        # # 6. 目录信息 存入mysql catalogs表 ，拿到id,catalog_id,src
+        self.save_book_catalog(book_info_list=book_info_list_2)
+        # # 7. 抓取文章内容
+        book_info_list_3 = self.update_book_id_and_catalog(info_list=book_info_list_2)
+        # 8. 格式化文章内容
+        book_catalog_info_list = self.format_book_catalog_info_list_data(book_info_list=book_info_list_3)
+        book_catalog_txt_list = self.get_book_txt_list(book_txt_list_data=book_catalog_info_list)
+        # 9. 文章内容存入 mysql txt表
+        groupData = self._data_.groupingData(list=book_catalog_txt_list, pageSize=300)
+        for item in groupData['listTaskList']:
+            self.save_book_catalog_txt(book_catalog_txt_list=item)
+        return True
 
 
 class Run(SpiderModel):
@@ -655,6 +783,27 @@ class Run(SpiderModel):
         print(book_page_list)
         self._r_.setListData(name='book_page_url_list', lists=book_page_list)
 
+    def free_book(self, freeBookUrl, xpath, free_book_list_html_xpath, maxNum=43200):
+        flip_flag = True
+        i = 1
+
+        while flip_flag:
+            print('├  获取书籍列表链接 %s' % freeBookUrl)
+            res = self.run_free_book(freeBookUrl=freeBookUrl, xpath=xpath,
+                                     free_book_list_html_xpath=free_book_list_html_xpath)
+            if res:
+                i = 1
+                print('├ [ %s ] 成功抓取  43200 秒后继续' % i)
+                time.sleep(43200)
+            else:
+                print('├ [ %s ] 获取失败 【 %s 】 180 秒后继续' % (i, freeBookUrl))
+                i += 1
+                time.sleep(180)
+                if i > maxNum:
+                    flip_flag = False
+                    print('├ [ %s ] 结束抓取' % i)
+        print('├  结束抓取')
+
 
 if __name__ == '__main__':
     platform = "起点中文网"
@@ -684,11 +833,23 @@ if __name__ == '__main__':
             'synoptic_list': './div[@class="book-mid-info"]/p[@class="intro"]/text()',
         },
         'book_list_html_xpath': '//ul[@class="all-img-list cf"]//li',
+        'freeXpath': {
+            'book_id_list': './div[@class="book-mid-info"]/h4/a/@data-bid',
+            'src_list': './div[@class="book-mid-info"]/h4/a/@href',
+            'title_list': './div[@class="book-mid-info"]/h4/a/text()',
+            'img_url_list': './div[@class="book-img-box"]/a/img/@src',
+            'state_list': './div[@class="book-mid-info"]/p[@class="author"]/span[1]/text()',
+            'author_list': './div[@class="book-mid-info"]/p[@class="author"]/a[1]/text()',
+            'chan_name_list': './div[@class="book-mid-info"]/p[@class="author"]/a[2]/text()',
+            'synoptic_list': './div[@class="book-mid-info"]/p[@class="intro"]/text()',
+        },
+        'free_book_list_html_xpath': '//*[@id="limit-list"]/div/ul//li',
         'saveBookCatalogInfoType': 'mysql',  # mysql redis
         'requests_url': [
             'https://www.qidian.com/all',
             'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page=1000'
         ],
+        'freeBookUrl': 'https://www.qidian.com/free',
         'params': [
             {
                 'src': 'https://www.qidian.com/all?orderId=&style=1&pageSize=20&siteid=1&pubflag=0&hiddenField=0&page={0}',
@@ -701,8 +862,8 @@ if __name__ == '__main__':
         ]
     }
     # online dev
-    environment = 'online'
-    spiderType = 1
+    environment = 'dev'
+    spiderType = 4
     isRepeat = False
     isVs = False
     isDebugger = True
@@ -733,3 +894,13 @@ if __name__ == '__main__':
         # 从 redis 中获取 目录信息  ，获取章节内容
         print('├  从 redis 中获取 目录信息  ，获取章节内容')
         run.from_redis_get_catalog_save_txt_to_redis(num=1, maxNum=43200)
+    elif spiderType == 4:
+        # 抓取免费章节
+        print('├  抓取免费章节')
+        isRepeat = True
+        isVs = True
+        isDebugger = True
+        xpath = config['freeXpath']
+        freeBookUrl = config['freeBookUrl']
+        free_book_list_html_xpath = config['free_book_list_html_xpath']
+        run.free_book(freeBookUrl=freeBookUrl, xpath=xpath, free_book_list_html_xpath=free_book_list_html_xpath)
