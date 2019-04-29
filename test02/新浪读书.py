@@ -18,10 +18,8 @@ __mtime__ = '2019/4/28'
                   ┃┫┫  ┃┫┫
                   ┗┻┛  ┗┻┛
 """
-import json
 import math
 import time
-from urllib.parse import urlencode
 
 import pymysql
 import redis
@@ -246,10 +244,18 @@ class Novel(object):
 
     # 工具类：通过xpath 解析html
     def analysis_html(self, html, xpath):
+        info = []
         info_obj = {}
         for key, value in xpath.items():
             info_obj[key] = html.xpath(value)
-        return info_obj
+        for item in zip(*info_obj.values()):
+            i = 0
+            obj = {}
+            for key, value in info_obj.items():
+                obj[key] = item[i]
+                i += 1
+            info.append(obj)
+        return info
 
     def from_list_get_id(self, id_list, id):
         nid = 0
@@ -289,7 +295,7 @@ class Spider(Novel):
         flip_flag = True
         i = 1
         while flip_flag:
-            print('├  请求书籍列表：【 %s 】  请求 ' % (str(url)))
+            print('├  [ %s ] 请求书籍列表：【 %s 】  请求 ' % (i, str(url)))
             time.sleep(3)
             try:
                 response = requests.get(url=url)
@@ -301,16 +307,55 @@ class Spider(Novel):
             except:
                 pass
 
-            print("├  请求书籍列表：【 %s 】  请求  ==》 失败 ==>  10 秒后再试" % (str(url)))
+            print("├  [ %s ] 请求书籍列表：【 %s 】  请求  ==》 失败 ==>  10 秒后再试" % (i, str(url)))
             i += 1
             time.sleep(10)
             if i > 30:
-                self._r_.setListData(name='get_book_list', lists=[str(url)])
                 flip_flag = False
 
         print(url, book_list_html_xpath)
         return html_list
 
+    # 3、小说列表数据处理 式化 book_id、src、title、img_url、state、author、chan_name、sub_name、gender、synoptic、platform、platform_src、
+    def format_book_list_data(self, book_list_html, xpath,gender,platform,platform_src):
+        book_info_list = []
+        for html in book_list_html:
+            # print(html)
+            book = self.analysis_html(html=html, xpath=xpath)
+            print(book)
+            for item in book:
+                # book_id、src、title、img_url、state、author、chan_name、sub_name、gender、synoptic、platform、platform_src、
+                book_info_list.append({
+                    'book_id': item['book_id'],
+                    'src': item['src'],
+                    'title': item['title'],
+                    'img_url': item['img_url'],
+                    'state': item['state'],
+                    'author': item['author'],
+                    'chan_name': item['chan_name'],
+                    'gender': gender,
+                    'synoptic': item['synoptic'],
+                    'platform': platform,
+                    'platform_src': platform_src
+                })
+        return book_info_list
+    # 获取目录列表
+    def get_book_catalog_list(self, book_list):
+        book_info_list = []
+        for item in book_list:
+            params = {
+                "_csrfToken": '',
+                "bookId": item['book_id']
+            }
+            request_url = platform_src + "/ajax/book/category?/job_detail/?" + urlencode(params)
+            catalog_info_list = self.request_api_data(request_url=request_url)
+            if len(catalog_info_list) <= 0:
+                continue
+            item['catalog_list'] = self.format_book_catalog_list_data(catalog_list=catalog_info_list['vs'],
+                                                                      book_id=item['book_id'])
+            item['chapter_total_cnt'] = catalog_info_list['chapterTotalCnt']
+            book_info_list.append(item)
+        return book_info_list
 
 class SpiderModel(Spider):
     # 1、处理模式 1 一条龙（创建小说列表页链接->小说->存储小说->章节->存储章节->内容->存储内容->翻页->小说）
@@ -326,6 +371,9 @@ class SpiderModel(Spider):
             print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
             self._r_.setListData(name='book_page_list', lists=[str(info)])
             return []
+        book_list = self.format_book_list_data(book_list_html=html_list, xpath=xpath,gender=info['gender'],platform=info['platform'],platform_src=info['platform_src'])
+        book_info_list = self.get_book_catalog_list(book_list=book_list)
+        print(book_list)
         end = time.time()
         print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
 
@@ -394,15 +442,14 @@ if __name__ == '__main__':
             'db': 8
         },
         'xpath': {
-            'book_id_list': './div[@class="book-mid-info"]/h4/a/@data-bid',
-            'src_list': './div[@class="book-mid-info"]/h4/a/@href',
-            'title_list': './div[@class="book-mid-info"]/h4/a/text()',
-            'img_url_list': './div[@class="book-img-box"]/a/img/@src',
-            'state_list': './div[@class="book-mid-info"]/p[@class="author"]/span[1]/text()',
-            'author_list': './div[@class="book-mid-info"]/p[@class="author"]/a[1]/text()',
-            'chan_name_list': './div[@class="book-mid-info"]/p[@class="author"]/a[2]/text()',
-            'sub_name_list': './div[@class="book-mid-info"]/p[@class="author"]/a[3]/text()',
-            'synoptic_list': './div[@class="book-mid-info"]/p[@class="intro"]/text()',
+            'book_id': './div[@class="book_info"]/p[@class="book_name"]/a/@href',
+            'src': './div[@class="book_info"]/p[@class="book_name"]/a/@href',
+            'title': './div[@class="book_info"]/p[@class="book_name"]/a/text()',
+            'img_url': './div[@class="img_box"]/a/img/@src',
+            'state': './div[@class="book_info"]/p[@class="book_author"]/text()',
+            'author': './div[@class="book_info"]/p[@class="book_author"]/span/text()',
+            'chan_name': '//div[@class="all-fr-title"]/text()',
+            'synoptic': './div[@class="book_info"]/p[@class="info"]/a/text()',
         },
         'book_list_html_xpath': '//div[@class="book_list"]/ul//li',
         'freeXpath': {
