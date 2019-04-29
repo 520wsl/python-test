@@ -59,7 +59,7 @@ class Data(object):
             'listTaskSize': listTaskSize,
             'listTaskList': listTaskList
         }
-        print('groupingData : %s' % res)
+        # print('groupingData : %s' % res)
         return res
 
 
@@ -261,7 +261,7 @@ class Spider(Novel):
             i += 1
             time.sleep(10)
             if i > 30:
-                self._r_.setListData(name='get_book_list', lists=[str(url)])
+                self._r_.setListData(name='book_page_url_list', lists=[str(url)])
                 flip_flag = False
 
         return html_list
@@ -289,7 +289,6 @@ class Spider(Novel):
                     'platform': platform,
                     'platform_src': platform_src
                 })
-                print(book_info_list)
         return book_info_list
 
     def format_free_book_list_data(self, book_list_html, xpath):
@@ -615,7 +614,7 @@ class Spider(Novel):
         if len(html_list) <= 0:
             time.sleep(10)
             print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
-            self._r_.setListData(name='book_page_list', lists=[str(url)])
+            self._r_.setListData(name='book_page_url_list', lists=[str(url)])
             return []
         # 2. 格式化书籍信息
         book_list = self.format_book_list_data(book_list_html=html_list, xpath=xpath)
@@ -780,7 +779,7 @@ class Run(SpiderModel):
             src = item['src']
             for i in range(1, maxPageSize):
                 book_page_list.append(src.format(i))
-        print(book_page_list)
+        # print(book_page_list)
         self._r_.setListData(name='book_page_url_list', lists=book_page_list)
 
     def free_book(self, freeBookUrl, xpath, free_book_list_html_xpath, maxNum=43200):
