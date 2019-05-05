@@ -19,7 +19,6 @@ __mtime__ = '2019/4/24'
                   ┗┻┛  ┗┻┛
 """
 import json
-import math
 import time
 from urllib.parse import urlencode
 
@@ -35,32 +34,6 @@ class Data(object):
         if isinstance(s, bytes):
             return s.decode(encoding)
         return s
-
-    def groupingData(self, list, pageSize, fixed=False):
-        listSize = len(list)
-        if fixed:
-            listGroupSize = pageSize
-        else:
-            listGroupSize = math.ceil(float(listSize) / pageSize)
-
-        nloops = range(listGroupSize)
-        listTaskList = []
-        listTaskSize = math.ceil(float(listSize) / listGroupSize)
-        for i in nloops:
-            try:
-                print("第 %s 组 ：[ %s ] \n\t" % (i + 1, len(list[i * listTaskSize:(i + 1) * listTaskSize])))
-                listTaskList.append(list[i * listTaskSize:(i + 1) * listTaskSize])
-            except:
-                print("第 %s 组 ：[ %s ] \n\t" % (i + 1, len(list[i * listTaskSize:])))
-                listTaskList.append(list[i * listTaskSize:])
-        res = {
-            'listSize': listSize,
-            'listGroupSize': listGroupSize,
-            'listTaskSize': listTaskSize,
-            'listTaskList': listTaskList
-        }
-        # print('groupingData : %s' % res)
-        return res
 
 
 class Redis(object):
@@ -260,7 +233,7 @@ class Spider(Novel):
             print("├  请求书籍列表：【 %s 】  请求  ==》 失败 ==>  10 秒后再试" % (str(url)))
             i += 1
             time.sleep(10)
-            if i > 30:
+            if i > 5:
                 self._r_.setListData(name='book_page_url_list', lists=[str(url)])
                 flip_flag = False
 
@@ -402,7 +375,7 @@ class Spider(Novel):
                 print("├  API ：【 %s 】 请求 ==》 失败 ==>  10 秒后再试" % (request_url))
                 i += 1
                 time.sleep(10)
-                if i > 30:
+                if i > 5:
                     self._r_.setListData(name='request_api_data', lists=[str(requests_url)])
                     flip_flag = False
 
@@ -536,7 +509,7 @@ class Spider(Novel):
                     book_title, book_id, catalog_title, catalog_id, catalog_src))
                 i += 1
                 time.sleep(10)
-                if i > 30:
+                if i > 5:
                     self._r_.setListData(name='get_book_txt', lists=[str(catalog_src)])
                     flip_flag = False
 
@@ -640,9 +613,8 @@ class SpiderModel(Spider):
                                                                         book_list_html_xpath=book_list_html_xpath)
         book_catalog_txt_list = self.get_book_txt_list(book_txt_list_data=book_catalog_info_list)
         # 9. 文章内容存入 mysql txt表
-        groupData = self._data_.groupingData(list=book_catalog_txt_list, pageSize=300)
-        for item in groupData['listTaskList']:
-            self.save_book_catalog_txt(book_catalog_txt_list=item)
+        for item in book_catalog_txt_list:
+            self.save_book_catalog_txt(book_catalog_txt_list=[item])
         end = time.time()
         print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
 
@@ -664,9 +636,8 @@ class SpiderModel(Spider):
         for info in catalog_info_list:
             book_catalog_info_list.append(eval(info))
         book_catalog_txt_list = self.get_book_txt_list(book_txt_list_data=book_catalog_info_list)
-        groupData = self._data_.groupingData(list=book_catalog_txt_list, pageSize=300)
-        for item in groupData['listTaskList']:
-            self.save_book_catalog_txt(book_catalog_txt_list=item)
+        for item in book_catalog_txt_list:
+            self.save_book_catalog_txt(book_catalog_txt_list=[item])
         end = time.time()
         print('├  消耗时间     ：%s 秒' % (int(float(end) - float(start))))
 
@@ -693,9 +664,8 @@ class SpiderModel(Spider):
         book_catalog_info_list = self.format_book_catalog_info_list_data(book_info_list=book_info_list_3)
         book_catalog_txt_list = self.get_book_txt_list(book_txt_list_data=book_catalog_info_list)
         # 9. 文章内容存入 mysql txt表
-        groupData = self._data_.groupingData(list=book_catalog_txt_list, pageSize=300)
-        for item in groupData['listTaskList']:
-            self.save_book_catalog_txt(book_catalog_txt_list=item)
+        for item in book_catalog_txt_list:
+            self.save_book_catalog_txt(book_catalog_txt_list=[item])
         return True
 
 
@@ -861,8 +831,8 @@ if __name__ == '__main__':
         ]
     }
     # online dev
-    environment = 'dev'
-    spiderType = 4
+    environment = 'online'
+    spiderType = 1
     isRepeat = False
     isVs = False
     isDebugger = True
@@ -884,15 +854,15 @@ if __name__ == '__main__':
     elif spiderType == 1:
         # 一条龙服务
         print('├  一条龙服务')
-        run.a_dragon(xpath=xpath, book_list_html_xpath=book_list_html_xpath, num=1, maxNum=43200)
+        run.a_dragon(xpath=xpath, book_list_html_xpath=book_list_html_xpath, num=100, maxNum=43200)
     elif spiderType == 2:
         # 获取并存储书籍和目录信息，存储章节目录 到redis
         print('├  获取并存储书籍和目录信息，存储章节目录 到redis')
-        run.save_catalog_list_to_redis(xpath=xpath, book_list_html_xpath=book_list_html_xpath, num=1, maxNum=43200)
+        run.save_catalog_list_to_redis(xpath=xpath, book_list_html_xpath=book_list_html_xpath, num=10, maxNum=43200)
     elif spiderType == 3:
         # 从 redis 中获取 目录信息  ，获取章节内容
         print('├  从 redis 中获取 目录信息  ，获取章节内容')
-        run.from_redis_get_catalog_save_txt_to_redis(num=1, maxNum=43200)
+        run.from_redis_get_catalog_save_txt_to_redis(num=1000, maxNum=43200)
     elif spiderType == 4:
         # 抓取免费章节
         print('├  抓取免费章节')
