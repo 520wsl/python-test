@@ -587,7 +587,6 @@ class Spider(Novel):
         if len(html_list) <= 0:
             time.sleep(10)
             print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
-            self._r_.setListData(name='book_page_url_list', lists=[str(url)])
             return []
         # 2. 格式化书籍信息
         book_list = self.format_book_list_data(book_list_html=html_list, xpath=xpath)
@@ -646,7 +645,6 @@ class SpiderModel(Spider):
         if len(html_list) <= 0:
             time.sleep(10)
             print('├  [DEBUG INFO]: 页面数据没有拿到。。。')
-            self._r_.setListData(name='free_book_page_list', lists=[str(freeBookUrl)])
             return False
             # 2. 格式化书籍信息
         book_list = self.format_free_book_list_data(book_list_html=html_list, xpath=xpath)

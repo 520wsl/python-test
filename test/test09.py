@@ -23,7 +23,7 @@ import tkinter
 MainForm = tkinter.Tk()
 MainForm.geometry("600x700")
 MainForm['background'] = 'LightSlateGray'
-MainForm.iconbitmap('I:\\硬盘转移文件\\D\\upupoobin\\WallPaper\\index\\img\\favicon.ico')
+# MainForm.iconbitmap('I:\\硬盘转移文件\\D\\upupoobin\\WallPaper\\index\\img\\favicon.ico')
 
 MainForm.title("恭喜你中了一百万！")
 
