@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>inde2</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/iview@3.4.2/dist/styles/iview.css">
+    <script type="text/javascript" src="https://vuejs.org/js/vue.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/iview@3.4.2/dist/iview.js"></script>
+</head>
+<body>
+<div id="app" class="main">
+    <Card class="card">
+        <div slot="title">书籍列表</div>
+        <i-table :columns="columns1" :data="book_list"></i-table>
+    </Card>
+    <Card class="card" style="text-align: right">
+        <Page :current="realPageNum" show-total :total="requiredPageCount" :page-size="requiredPageSize" @on-change="pageCurrentChange"/>
+    </Card>
+</div>
+
+<script>
+    let book_list = {{book_list}}
+    let page_num = {{page_num}}
+    let page_size = {{page_size}}
+    let book_count = {{book_count}}
+    new Vue({
+        el: '#app',
+        methods: {
+            pageCurrentChange(val) {
+                console.log(val)
+                location.href = '?pageNum=' + val + '&pageSize=' + this.requiredPageSize
+            },
+        },
+        data: {
+            book_list: book_list,
+            requiredPageCount: book_count,
+            requiredPageSize: page_size,
+            realPageNum: page_num,
+            columns1: [
+                {
+                    title: 'ID',
+                    align: 'center',
+                    key: 'id'
+                },
+                {
+                    title: '书名',
+                    align: 'center',
+                    key: 'title'
+                },
+                {
+                    title: '封面',
+                    align: 'center',
+                    key: 'img_url',
+                    render: (h, params) => {
+                        group = []
+                        img_url = 'http:' + params.row.img_url
+                        title = params.row.title
+                        group.push(h('img', {
+                            attrs: {
+                                src: img_url,
+                                title: title,
+                                alt: title
+                            },
+                            style: {
+                                'max-width': '60px',
+                                'max-height': '60px'
+                            }
+                        }))
+                        return h('div', group)
+                    }
+                },
+                {
+                    title: '状态',
+                    align: 'center',
+                    key: 'state'
+                },
+                {
+                    title: '作者',
+                    align: 'center',
+                    key: 'author'
+                },
+                {
+                    title: '类型',
+                    align: 'center',
+                    key: 'author',
+                    render: (h, params) => {
+                        chan_name = params.row.chan_name || ''
+                        sub_name = params.row.sub_name || ''
+                        group = []
+                        group.push(
+                            h('span', {}, chan_name)
+                        );
+                        group.push(
+                            h('span', {}, ' / ' + sub_name)
+                        );
+
+                        return ('div', group)
+                    }
+                },
+                {
+                    title: '平台',
+                    align: 'center',
+                    key: 'platform'
+                },
+                {
+                    title: '简介',
+                    width: 300,
+                    align: 'center',
+                    key: 'synoptic'
+                },
+            ]
+        }
+    })
+</script>
+</body>
+</html>
+
+
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #f7f7f7;
+    }
+
+    .main {
+        margin: 0 auto;
+        width: 95%;
+    }
+
+    .card {
+        margin-top: 30px;
+    }
+
+    td, th {
+        padding: 5px;
+        border: 1px solid #eee;
+    }
+
+    img {
+        max-height: 150px;
+    }
+</style>
