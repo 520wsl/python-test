@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>home</title>
+    <title>inde2</title>
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/iview@3.4.2/dist/styles/iview.css">
     <script type="text/javascript" src="https://vuejs.org/js/vue.min.js"></script>
     <script type="text/javascript" src="https://unpkg.com/iview@3.4.2/dist/iview.js"></script>
@@ -14,54 +14,34 @@
         <i-table :columns="columns1" :data="book_list"></i-table>
     </Card>
     <Card class="card" style="text-align: right">
-         <Page :total="100" />
+        <Page :current="realPageNum" show-total :total="requiredPageCount" :page-size="requiredPageSize" @on-change="pageCurrentChange"/>
     </Card>
 </div>
 
-<script type="text/javascript">
+<script>
+    let book_list = {{book_list}}
+    let page_num = {{page_num}}
+    let page_size = {{page_size}}
+    let book_count = {{book_count}}
     new Vue({
         el: '#app',
+        methods: {
+            pageCurrentChange(val) {
+                console.log(val)
+                location.href = '?pageNum=' + val + '&pageSize=' + this.requiredPageSize
+            },
+        },
         data: {
-            book_list: [{
-                'id': 1,
-                'book_Id': '1004608738',
-                'src': '//book.qidian.com/info/1004608738',
-                'title': '圣墟',
-                'img_url': '//bookcover.yuewen.com/qdbimg/349573/1004608738/150',
-                'state': '连载中',
-                'author': '辰东',
-                'chan_id': 0,
-                'chan_name': '玄幻',
-                'sub_id': 0,
-                'sub_name': '东方玄幻',
-                'chapter_total_cnt': 1419,
-                'word_count': 0,
-                'gender': 1,
-                'synoptic': '\r                        在破败中崛起，在寂灭中复苏。沧海成尘，雷电枯竭，那一缕幽雾又一次临近大地，世间的枷锁被打开了，一个全新的世界就此揭开神秘的一角……\r                    ',
-                'platform': '起点中文网',
-                'platform_src': 'https://www.qidian.com',
-                'nex': 0,
-            }, {
-                'id': 2,
-                'book_Id': '1010468795',
-                'src': '//book.qidian.com/info/1010468795',
-                'title': '飞剑问道',
-                'img_url': '//bookcover.yuewen.com/qdbimg/349573/1010468795/150',
-                'state': '连载中',
-                'author': '我吃西红柿',
-                'chan_id': 0,
-                'chan_name': '仙侠',
-                'sub_id': 0,
-                'sub_name': '古典仙侠',
-                'chapter_total_cnt': 739,
-                'word_count': 0,
-                'gender': 1,
-                'synoptic': '\r                        番茄继《吞噬星空》《莽荒纪》《雪鹰领主》后的第九本小说。————在这个世界，有狐仙、河神、水怪、大妖，也有求长生的修行者。修行者们，开法眼，可看妖魔鬼怪。炼一口飞剑，可千里杀敌。千里眼、顺风耳，更可探\r                    ',
-                'platform': '起点中文网',
-                'platform_src': 'https://www.qidian.com',
-                'nex': 0
-            },],
+            book_list: book_list,
+            requiredPageCount: book_count,
+            requiredPageSize: page_size,
+            realPageNum: page_num,
             columns1: [
+                {
+                    title: 'ID',
+                    align: 'center',
+                    key: 'id'
+                },
                 {
                     title: '书名',
                     align: 'center',
@@ -82,8 +62,8 @@
                                 alt: title
                             },
                             style: {
-                                'max-width': '100px',
-                                'max-height': '100px'
+                                'max-width': '60px',
+                                'max-height': '60px'
                             }
                         }))
                         return h('div', group)
@@ -124,16 +104,11 @@
                 },
                 {
                     title: '简介',
-                    width: 600,
+                    width: 300,
                     align: 'center',
                     key: 'synoptic'
                 },
             ]
-        },
-        methods: {
-            show: function () {
-                this.visible = true;
-            }
         }
     })
 </script>
