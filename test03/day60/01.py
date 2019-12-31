@@ -3,7 +3,7 @@ import socket
 # 生成 socket 实例对象
 sk = socket.socket()
 
-sk.bind(('172.30.34.114', 8008))
+sk.bind(('172.30.34.114', 8901))
 # 监听
 sk.listen()
 
