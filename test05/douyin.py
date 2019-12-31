@@ -1,3 +1,5 @@
+import time
+
 from flask import Flask, request, send_file
 import requests
 import json
@@ -9,6 +11,7 @@ app = Flask(__name__)
 # 只接受get方法访问
 @app.route("/douyin/", methods=["GET"])
 def check():
+    video_name = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) + '-douyin.mp4'
     headers = {
         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
         'accept-encoding': 'gzip, deflate, br',
@@ -40,21 +43,21 @@ def check():
     # 字符串转字典
     content = json.loads(html_item.text)
 
-    # 获取视频相关的信息
-    data = {}
-    # 视频的描述
-    data['videoDesc'] = content['item_list'][0]['desc']
-    # 视频的封面图,小图
-    data['dynamiCoverUrl'] = content['item_list'][0]['video']['dynamic_cover']['url_list'][0]
-    # 视频的封面图,大图
-    data['staticCoverUrl'] = content['item_list'][0]['video']['origin_cover']['url_list'][0]
-    # 视频的评论数
-    data['comments'] = content['item_list'][0]['statistics']['comment_count']
-    # 视频的点赞数
-    data['prise'] = content['item_list'][0]['statistics']['digg_count']
-
-    print(data)
-    print(content)
+    # # 获取视频相关的信息
+    # data = {}
+    # # 视频的描述
+    # data['videoDesc'] = content['item_list'][0]['desc']
+    # # 视频的封面图,小图
+    # data['dynamiCoverUrl'] = content['item_list'][0]['video']['dynamic_cover']['url_list'][0]
+    # # 视频的封面图,大图
+    # data['staticCoverUrl'] = content['item_list'][0]['video']['origin_cover']['url_list'][0]
+    # # 视频的评论数
+    # data['comments'] = content['item_list'][0]['statistics']['comment_count']
+    # # 视频的点赞数
+    # data['prise'] = content['item_list'][0]['statistics']['digg_count']
+    #
+    # print(data)
+    # print(content)
 
     # 视频接口
     url_video = content['item_list'][0]['video']['play_addr']['url_list'][1]
@@ -71,15 +74,41 @@ def check():
     # return json.dumps(return_dict, ensure_ascii=False)
 
     video = requests.get(url=redirect, headers=headers).content
-    video_name = "douyin.mp4"
+
+
     with open(video_name, 'wb') as f:
         f.write(video)
         f.flush()
-    return send_file('douyin.mp4')
+    return send_file(video_name)
 
 
 if __name__ == "__main__":
+    print('= =' * 10 + ' Dou Yin Tool' + ('= =' * 10))
+    print('\t @Name: 抖音工具箱')
+    print('\t @Author : Mad Dragon')
+    print('\t @Email: 395548460@qq.com')
+    print('\t @Version: 2.0.1')
+    print('\t @Time: 2019年12月31日')
+    print('= =' * 10 + ' Mini Tool ' + ('= =' * 10))
+
+    print('= =' * 25)
+    print('\n')
+    print('\t ID : name')
+    print('\t 1 : 抖音无水印视频下载')
+    print('= =' * 25)
+
+
+    print('= =' * 25)
+    print('\n')
+    print('\t访问链接：   http://127.0.0.1:443/douyin/?url=《短视频链接》')
+    print('\t案例：')
+    print('\t\thttp://127.0.0.1:443/douyin/?url=https://v.douyin.com/V4JQYB/')
+    print('= =' * 25)
+
+
     # 本地调试
     # app.run(debug=True)
     # 部署上线
+
+
     app.run(host='127.0.0.1', port=443)
