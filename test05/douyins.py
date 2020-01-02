@@ -179,23 +179,15 @@ class DouYin(object):
 	def hello(self):
 		"""
 		打印欢迎界面
+		Parameters:
+			None
+		Returns:
+			None
 		"""
-		print('= =' * 20 + ' Dou Yin Tool' + ('= =' * 20))
-		print('\n')
-		print('\t @Name: 抖音工具箱')
-		print('\t @Author : Mad Dragon')
-		print('\t @Email: 395548460@qq.com')
-		print('\t @Version: 2.0.1')
-		print('\t @Time: 2019年12月31日')
-		print('\n')
-		print('= =' * 20 + ' Dou Yin Tool ' + ('= =' * 20))
-
-		print('= =' * 25)
-		print('\n')
-		print('\t ID : name')
-		print('\t 1 : 抖音视频批量下载')
-		print('\n')
-		print('= =' * 25)
+		print('*' * 100)
+		print('\t\t\t\t抖音App视频下载小助手')
+		print('\t\t作者:Jack Cui、steven7851')
+		print('*' * 100)
 
 
 if __name__ == '__main__':
